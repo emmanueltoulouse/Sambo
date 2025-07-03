@@ -137,6 +137,8 @@ namespace Sambo {
             public string full_path { get; set; }
             public string size_str { get; set; }
             public bool is_file { get; set; }
+            public string error_message { get; set; default = ""; }
+            public string error_details { get; set; default = ""; }
             public Gee.List<ModelNode> children { get; set; }
             
             public ModelNode(string name, string full_path, bool is_file = false, string size_str = "") {
@@ -145,6 +147,10 @@ namespace Sambo {
                 this.is_file = is_file;
                 this.size_str = size_str;
                 this.children = new Gee.ArrayList<ModelNode>();
+            }
+            
+            public bool has_error() {
+                return error_message != "";
             }
         }
 
@@ -156,29 +162,50 @@ namespace Sambo {
             string models_dir = get_string("AI", "models_directory", "");
             var root = new ModelNode("Models", models_dir);
             
+            // Définir l'état d'erreur dans le nœud racine
+            root.error_message = "";
+            
             print("Répertoire des modèles configuré : %s\n", models_dir);
             
-            // Si un répertoire de modèles est configuré, scanner l'arborescence
-            if (models_dir != "" && FileUtils.test(models_dir, FileTest.IS_DIR)) {
-                try {
-                    build_models_tree(models_dir, root, models_dir);
-                } catch (Error e) {
-                    warning("Erreur lors du scan des modèles: %s", e.message);
-                }
+            // Vérifier si un répertoire est configuré
+            if (models_dir == "") {
+                root.error_message = "AUCUN_REPERTOIRE_CONFIGURE";
+                root.error_details = "Aucun répertoire de modèles n'est configuré dans les paramètres.";
+                return root;
             }
             
-            // Si aucun modèle n'est trouvé, ajouter des modèles par défaut
+            // Vérifier si le répertoire existe
+            if (!FileUtils.test(models_dir, FileTest.EXISTS)) {
+                root.error_message = "REPERTOIRE_INEXISTANT";
+                root.error_details = @"Le répertoire configuré n'existe pas :\n$(models_dir)";
+                return root;
+            }
+            
+            // Vérifier si c'est bien un dossier
+            if (!FileUtils.test(models_dir, FileTest.IS_DIR)) {
+                root.error_message = "PAS_UN_DOSSIER";
+                root.error_details = @"Le chemin configuré n'est pas un dossier :\n$(models_dir)";
+                return root;
+            }
+            
+            // Scanner l'arborescence
+            try {
+                build_models_tree(models_dir, root, models_dir);
+            } catch (Error e) {
+                warning("Erreur lors du scan des modèles: %s", e.message);
+                root.error_message = "ERREUR_SCAN";
+                root.error_details = @"Erreur lors du scan du répertoire :\n$(e.message)";
+                return root;
+            }
+            
+            // Vérifier si des modèles ont été trouvés
             if (root.children.size == 0) {
-                print("Aucun modèle trouvé dans le répertoire, ajout des modèles par défaut\n");
-                var default_folder = new ModelNode("Modèles par défaut", "", false);
-                default_folder.children.add(new ModelNode("GPT-4", "", true));
-                default_folder.children.add(new ModelNode("Claude-3", "", true));
-                default_folder.children.add(new ModelNode("Llama-2", "", true));
-                default_folder.children.add(new ModelNode("Mistral-7B", "", true));
-                root.children.add(default_folder);
+                root.error_message = "AUCUN_MODELE_TROUVE";
+                root.error_details = @"Aucun modèle trouvé dans le répertoire :\n$(models_dir)\n\nFormats supportés : .gguf, .bin, .safetensors";
+                return root;
             }
             
-            print("Arborescence des modèles construite\n");
+            print("Arborescence des modèles construite avec %d éléments\n", root.children.size);
             return root;
         }
 

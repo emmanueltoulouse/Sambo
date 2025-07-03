@@ -12,6 +12,29 @@ json_dep = dependency('json-glib-1.0', required: true)
 gio_dep = dependency('gio-2.0', required: true)
 soup_dep = dependency('libsoup-3.0', required: true)
 
+# Dépendance llama.cpp
+llama_dep = meson.get_compiler('c').find_library('llama', 
+  dirs: ['/usr/local/lib', '/usr/lib'],
+  required: false
+)
+
+# Si llama.cpp n'est pas trouvé via find_library, essayer de déclarer manuellement
+if not llama_dep.found()
+  warning('llama.cpp non trouvé via find_library, tentative manuelle...')
+  # Déclaration manuelle si installé dans /usr/local
+  if meson.get_compiler('c').has_header('llama.h', 
+     args: ['-I/usr/local/include'])
+    llama_dep = declare_dependency(
+      link_args: ['-L/usr/local/lib', '-lllama'],
+      compile_args: ['-I/usr/local/include', '-DHAVE_LLAMA_CPP=1']
+    )
+    message('llama.cpp trouvé dans /usr/local')
+  else
+    warning('llama.cpp non trouvé, mode simulation activé')
+    llama_dep = dependency('', required: false)  # Dépendance vide
+  endif
+endif
+
 # Import des modules GNOME
 gnome = import('gnome')
 
@@ -50,9 +73,13 @@ sources = [
     'src/HeaderBar.vala',
     'src/TextEditor.vala',
 
+    # Wrapper C pour llama.cpp
+    'src/sambo_llama_wrapper.c',
+
     # Modèles
     'src/model/ApplicationModel.vala',
     'src/model/ConfigManager.vala',
+    'src/model/ModelManager.vala',
     'src/model/EditorModel.vala',
     'src/model/CommunicationModel.vala',
     'src/model/ChatMessage.vala',
@@ -127,7 +154,7 @@ sources = [
 add_project_arguments(['--target-glib=auto'], language: 'vala')
 
 # Assurez-vous que le compilateur valac puisse trouver les packages
-add_project_arguments(['--pkg=gtk4', '--pkg=libadwaita-1', '--pkg=gee-0.8', '--pkg=gio-2.0', '--pkg=libsoup-3.0'], language: 'vala')
+add_project_arguments(['--pkg=gtk4', '--pkg=libadwaita-1', '--pkg=gee-0.8', '--pkg=gio-2.0', '--pkg=libsoup-3.0', '--pkg=llama'], language: 'vala')
 
 # Ajouter le répertoire vapi pour les bindings llama.cpp
 add_project_arguments(['--vapidir=' + meson.current_source_dir() + '/vapi'], language: 'vala')
@@ -140,9 +167,10 @@ math_dep = meson.get_compiler('c').find_library('m', required: false)
 
 executable('Sambo',
   sources: sources + resources,
-  dependencies: [gtk_dep, adw_dep, gee_dep, json_dep, gio_dep, soup_dep, math_dep],
+  dependencies: [gtk_dep, adw_dep, gee_dep, json_dep, gio_dep, soup_dep, math_dep, llama_dep],
   install: true,
-  vala_args: ['--Xcc=-lm'] # Temporairement sans llama: '--pkg=llama'
+  include_directories: include_directories('src'),
+  vala_args: ['--Xcc=-lm', '--pkg=llama'] # Inclure le package llama
 )
 
 # Installation de l'icône

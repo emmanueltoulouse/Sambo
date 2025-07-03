@@ -222,8 +222,8 @@ tooltip > label, tooltip label {
     color: #1c1c1c;
     font-weight: 600;
     font-size: 1.1em;
-    /* Centrage avec flex pour éviter les erreurs CSS */
-    display: block;
+    /* Centrage avec margin auto pour éviter les erreurs CSS */
+    text-align: center;
     margin-left: auto;
     margin-right: auto;
 }
@@ -381,3 +381,132 @@ tooltip > label, tooltip label {
 .folder-depth-4 .model-folder-content {
     border-left-color: #20c997;
 }
+
+/* ===== INTERFACE D'ERREUR POUR LES MODÈLES ===== */
+
+/* Conteneur principal d'erreur */
+.model-error-container {
+    background-color: #fff8f0;
+    border: 2px solid #fd7e14;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 12px;
+}
+
+/* Icône d'erreur */
+.model-error-icon {
+    color: #fd7e14;
+    margin-bottom: 8px;
+    /* align-self: center; CSS non valide en GTK */
+}
+
+/* Titre de l'erreur */
+.model-error-title {
+    color: #d63384;
+    font-size: 1.2em;
+    font-weight: 700;
+    margin-bottom: 8px;
+    /* text-align: center; CSS non valide en GTK */
+}
+
+/* Message d'action */
+.model-error-action {
+    color: #495057;
+    font-size: 1em;
+    font-weight: 500;
+    margin-bottom: 12px;
+    line-height: 1.4;
+}
+
+/* Détails de l'erreur */
+.model-error-details {
+    color: #6c757d;
+    font-size: 0.9em;
+    font-family: 'Monospace', monospace;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 16px;
+    line-height: 1.3;
+}
+
+/* Boutons d'erreur */
+.model-error-button {
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 150ms ease;
+}
+
+.model-error-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Bouton d'action principale */
+.model-error-button.suggested-action {
+    background-color: #3584e4;
+    color: white;
+    border: none;
+}
+
+.model-error-button.suggested-action:hover {
+    background-color: #1c71d8;
+}
+
+/* États de la barre d'état du chat */
+.status-loading {
+    color: #fd7e14;
+    font-style: italic;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+.status-success {
+    color: #28a745;
+    font-weight: 500;
+}
+
+.status-error {
+    color: #dc3545;
+    font-weight: 500;
+}
+
+/* Animation de pulsation pour le chargement */
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.6; }
+    100% { opacity: 1; }
+}
+
+/* ===== TOASTS PERSONNALISÉS ===== */
+
+/* Toast de succès pour modèle prêt */
+toast.model-ready {
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+/* Toast d'erreur pour modèle */
+toast.model-error {
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+/* Toast de chargement */
+toast.model-loading {
+    background-color: #fff3cd;
+    border: 1px solid #ffeaa7;
+    color: #856404;
+}
+
+/* Animation subtile pour les toasts */
+toast {
+    transition: all 200ms ease;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* ===== FIN TOASTS ===== */

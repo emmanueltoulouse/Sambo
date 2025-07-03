@@ -3,7 +3,9 @@
  * Copyright 2023
  *
  * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
+ * it under the terms of the            // Bon : le contrôleur lit la config AVANT la création de la fenêtre principale
+            controller.init();
+            main_window = new MainWindow(this, controller, controller.is_using_detached_explorer());U General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
