@@ -12,6 +12,9 @@ namespace Sambo {
         private Entry message_entry;
         private Button send_button;
         private Button model_selector_button;
+        private Label model_label;
+        private Label status_label;
+        private string current_model = "";
         private bool is_processing = false;
 
         /**
@@ -56,6 +59,9 @@ namespace Sambo {
             // Ajouter les widgets à la vue principale
             this.append(scroll);
             this.append(input_box);
+            
+            // Créer la barre d'état
+            create_status_bar();
 
             // Message de bienvenue
             var welcome = new ChatMessage("Bonjour ! Comment puis-je vous aider aujourd'hui ?", ChatMessage.SenderType.AI);
@@ -83,7 +89,7 @@ namespace Sambo {
             model_icon.add_css_class("model-icon");
             
             // Label pour le modèle actuel
-            var model_label = new Label("GPT-4");
+            model_label = new Label("Modèles");
             model_label.add_css_class("model-label");
             
             // Icône de dropdown
@@ -117,8 +123,224 @@ namespace Sambo {
          * Gestionnaire temporaire pour le clic sur le sélecteur de modèle
          */
         private void on_model_selector_clicked() {
-            // TODO: Implémenter la logique de sélection de modèle
-            print("Bouton de sélection de modèle cliqué\n");
+            show_model_selection_popover();
+        }
+
+        /**
+         * Affiche le popover de sélection des modèles avec arborescence interactive
+         */
+        private void show_model_selection_popover() {
+            var popover = new Gtk.Popover();
+            popover.set_parent(model_selector_button);
+            popover.set_position(Gtk.PositionType.BOTTOM);
+
+            // Obtenir l'arborescence des modèles
+            var config = controller.get_config_manager();
+            var models_tree = config.get_models_tree();
+
+            // Créer le conteneur principal
+            var main_box = new Box(Orientation.VERTICAL, 6);
+            main_box.set_margin_start(8);
+            main_box.set_margin_end(8);
+            main_box.set_margin_top(8);
+            main_box.set_margin_bottom(8);
+
+            // Titre du popover
+            var title_label = new Label("Sélection du modèle IA");
+            title_label.add_css_class("heading");
+            title_label.add_css_class("model-selector-title");
+            title_label.set_margin_bottom(12);
+            main_box.append(title_label);
+
+            // Créer l'arborescence
+            var tree_container = new Box(Orientation.VERTICAL, 0);
+            tree_container.add_css_class("model-tree");
+
+            if (models_tree.children.size == 0) {
+                // Afficher un message si aucun modèle n'est trouvé
+                var no_model_label = new Label("Aucun modèle disponible");
+                no_model_label.add_css_class("dim-label");
+                no_model_label.set_margin_top(20);
+                no_model_label.set_margin_bottom(20);
+                tree_container.append(no_model_label);
+            } else {
+                // Construire l'arborescence interactive
+                foreach (var root_child in models_tree.children) {
+                    var tree_widget = create_tree_node_widget(root_child, 0, popover);
+                    tree_container.append(tree_widget);
+                }
+            }
+
+            main_box.append(tree_container);
+
+            var scrolled = new ScrolledWindow();
+            scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC);
+            scrolled.set_max_content_height(500);
+            scrolled.set_min_content_width(450);
+            scrolled.set_min_content_height(300);
+            scrolled.set_child(main_box);
+
+            popover.set_child(scrolled);
+            popover.popup();
+        }
+
+        /**
+         * Crée un widget pour un nœud de l'arborescence
+         */
+        private Widget create_tree_node_widget(ConfigManager.ModelNode node, int depth, Gtk.Popover popover) {
+            if (node.is_file) {
+                // Créer un widget pour un fichier modèle
+                return create_model_file_widget(node, depth, popover);
+            } else {
+                // Créer un widget pour un dossier (Expander)
+                return create_folder_expander_widget(node, depth, popover);
+            }
+        }
+
+        /**
+         * Crée un widget Expander pour un dossier
+         */
+        private Widget create_folder_expander_widget(ConfigManager.ModelNode node, int depth, Gtk.Popover popover) {
+            // Créer un conteneur vertical pour le dossier et ses enfants
+            var folder_container = new Box(Orientation.VERTICAL, 2);
+            
+            // Créer le bouton de dossier avec icône personnalisée
+            var folder_button = new Button();
+            folder_button.add_css_class("model-folder-button");
+            folder_button.add_css_class("flat");
+            folder_button.add_css_class(@"folder-depth-$(depth > 4 ? 4 : depth)");
+            
+            // Contenu du bouton (icône + nom)
+            var button_content = new Box(Orientation.HORIZONTAL, 8);
+            button_content.set_margin_start(8 + depth * 16);
+            button_content.set_margin_end(8);
+            button_content.set_margin_top(4);
+            button_content.set_margin_bottom(4);
+            
+            // Icône de dossier (fermé par défaut)
+            var folder_icon = new Image.from_icon_name("folder-symbolic");
+            folder_icon.set_icon_size(IconSize.NORMAL);
+            folder_icon.add_css_class("folder-toggle-icon");
+            
+            // Label du nom du dossier
+            var folder_label = new Label(node.name);
+            folder_label.set_xalign(0);
+            folder_label.set_hexpand(true);
+            folder_label.add_css_class("folder-label");
+            
+            button_content.append(folder_icon);
+            button_content.append(folder_label);
+            folder_button.set_child(button_content);
+
+            // Créer le conteneur pour les enfants (initialement caché)
+            var children_box = new Box(Orientation.VERTICAL, 2);
+            children_box.add_css_class("model-folder-content");
+            children_box.set_visible(false); // Fermé par défaut
+            
+            // Ajouter tous les enfants
+            foreach (var child in node.children) {
+                var child_widget = create_tree_node_widget(child, depth + 1, popover);
+                children_box.append(child_widget);
+            }
+
+            // État d'ouverture du dossier
+            bool is_expanded = false;
+            
+            // Connecter le signal de clic pour ouvrir/fermer
+            folder_button.clicked.connect(() => {
+                is_expanded = !is_expanded;
+                children_box.set_visible(is_expanded);
+                
+                // Changer l'icône selon l'état
+                if (is_expanded) {
+                    folder_icon.set_from_icon_name("folder-open-symbolic");
+                } else {
+                    folder_icon.set_from_icon_name("folder-symbolic");
+                }
+            });
+            
+            folder_container.append(folder_button);
+            folder_container.append(children_box);
+            
+            return folder_container;
+        }
+
+        /**
+         * Crée un widget pour un fichier modèle
+         */
+        private Widget create_model_file_widget(ConfigManager.ModelNode node, int depth, Gtk.Popover popover) {
+            var button = new Button();
+            button.add_css_class("model-file-button");
+            button.add_css_class("flat");
+            button.set_margin_start(depth * 16);
+
+            var content_box = new Box(Orientation.HORIZONTAL, 8);
+            content_box.set_margin_start(8);
+            content_box.set_margin_end(8);
+            content_box.set_margin_top(4);
+            content_box.set_margin_bottom(4);
+
+            // Icône de sélection (checkmark si sélectionné)
+            var check_icon = new Image.from_icon_name("object-select-symbolic");
+            check_icon.set_visible(node.full_path == current_model);
+            check_icon.add_css_class("model-check");
+
+            // Icône du modèle
+            var model_icon = new Image.from_icon_name("applications-science-symbolic");
+            model_icon.set_icon_size(IconSize.NORMAL);
+            model_icon.add_css_class("model-item-icon");
+
+            // Créer le label avec taille et nom
+            string display_text = node.size_str.length > 0 ? @"$(node.size_str) - $(node.name)" : node.name;
+            var name_label = new Label(display_text);
+            name_label.set_xalign(0);
+            name_label.set_hexpand(true);
+            name_label.add_css_class("model-item-label");
+
+            content_box.append(check_icon);
+            content_box.append(model_icon);
+            content_box.append(name_label);
+            button.set_child(content_box);
+
+            // Connecter le signal de sélection
+            button.clicked.connect(() => {
+                select_model(node.full_path);
+                popover.popdown();
+            });
+
+            return button;
+        }
+
+        /**
+         * Sélectionne un modèle
+         */
+        private void select_model(string model_path) {
+            current_model = model_path;
+            
+            // Extraire juste le nom du fichier pour l'affichage
+            string display_name = Path.get_basename(model_path);
+            
+            // Mettre à jour la barre d'état
+            status_label.set_text(@"Modèle sélectionné : $display_name");
+            
+            print("Modèle sélectionné : %s (chemin : %s)\n", display_name, model_path);
+        }
+
+        /**
+         * Crée la barre d'état en bas de la zone chat
+         */
+        private void create_status_bar() {
+            var status_bar = new Box(Orientation.HORIZONTAL, 6);
+            status_bar.add_css_class("chat-status-bar");
+
+            // Label pour le statut
+            status_label = new Label("Aucun modèle sélectionné");
+            status_label.add_css_class("status-label");
+            status_label.set_xalign(0);
+            status_label.set_hexpand(true);
+
+            status_bar.append(status_label);
+            this.append(status_bar);
         }
 
         /**

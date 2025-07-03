@@ -68,6 +68,45 @@
     margin-left: 2px;
 }
 
+.model-list {
+    border-radius: 8px;
+    background-color: white;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    min-width: 420px;
+}
+
+.model-list row {
+    border-radius: 4px;
+    margin: 2px;
+}
+
+.model-list row:hover {
+    background-color: #f5f5f5;
+}
+
+.model-list row:selected {
+    background-color: #3584e4;
+    color: white;
+}
+
+.model-check {
+    color: #3584e4;
+    margin-right: 4px;
+}
+
+.chat-status-bar {
+    padding: 6px 12px;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+    background-color: #f8f8f8;
+    min-height: 30px;
+}
+
+.status-label {
+    font-size: 0.85em;
+    color: #666666;
+    font-style: italic;
+}
+
 .chat-bubble {
     padding: 4px;
     margin: 6px 0;
@@ -174,4 +213,171 @@ tooltip > label, tooltip label {
 .color-icon {
     font-size: 1.2em;
     margin-right: 4px;
+}
+
+/* ===== SÉLECTEUR DE MODÈLES - ARBORESCENCE INTERACTIVE ===== */
+
+/* Titre du sélecteur */
+.model-selector-title {
+    color: #1c1c1c;
+    font-weight: 600;
+    font-size: 1.1em;
+    /* Centrage avec flex pour éviter les erreurs CSS */
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Conteneur principal de l'arborescence */
+.model-tree {
+    background-color: white;
+    border-radius: 8px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+/* Boutons de dossier personnalisés */
+.model-folder-button {
+    border-radius: 6px;
+    margin: 1px 0;
+    padding: 0;
+    border: none;
+    background-color: transparent;
+    transition: all 150ms ease;
+}
+
+.model-folder-button:hover {
+    background-color: #f8f9fa;
+}
+
+.model-folder-button:active {
+    background-color: #e9ecef;
+}
+
+/* Icône de dossier dans le bouton */
+.folder-toggle-icon {
+    color: #6c757d;
+    margin-right: 8px;
+    transition: color 150ms ease;
+}
+
+.model-folder-button:hover .folder-toggle-icon {
+    color: #3584e4;
+}
+
+/* Label du dossier */
+.folder-label {
+    font-weight: 600;
+    color: #495057;
+    transition: color 150ms ease;
+}
+
+.model-folder-button:hover .folder-label {
+    color: #212529;
+}
+
+/* Contenu du dossier */
+.model-folder-content {
+    padding: 4px 0;
+    margin-left: 8px;
+    border-left: 2px solid #e9ecef;
+    padding-left: 8px;
+}
+
+/* Boutons pour les fichiers modèles */
+.model-file-button {
+    border-radius: 6px;
+    margin: 1px 0;
+    padding: 0;
+    border: none;
+    background-color: transparent;
+    transition: all 150ms ease;
+}
+
+.model-file-button:hover {
+    background-color: #f8f9fa;
+    border-left: 3px solid #3584e4;
+}
+
+.model-file-button:active {
+    background-color: #e9ecef;
+}
+
+/* Contenu des boutons de fichier */
+.model-file-button > box {
+    padding: 6px 12px;
+}
+
+/* Icône de vérification (modèle sélectionné) */
+.model-check {
+    color: #28a745;
+    margin-right: 6px;
+}
+
+/* Icône du modèle */
+.model-item-icon {
+    color: #6c757d;
+    margin-right: 8px;
+    transition: color 150ms ease;
+}
+
+.model-file-button:hover .model-item-icon {
+    color: #3584e4;
+}
+
+/* Label du modèle */
+.model-item-label {
+    font-size: 0.9em;
+    color: #495057;
+    font-family: 'Monospace', monospace;
+    line-height: 1.4;
+    /* text-align supprimé car non valide en CSS */
+}
+
+.model-file-button:hover .model-item-label {
+    color: #212529;
+    font-weight: 500;
+}
+
+/* Styles d'indentation par niveaux pour les dossiers */
+.folder-depth-0 .folder-label {
+    color: #1c1c1c;
+    font-weight: 700;
+    font-size: 1.05em;
+}
+
+.folder-depth-1 .folder-label {
+    color: #6f42c1;
+    font-weight: 600;
+}
+
+.folder-depth-2 .folder-label {
+    color: #d63384;
+    font-weight: 600;
+}
+
+.folder-depth-3 .folder-label {
+    color: #fd7e14;
+    font-weight: 600;
+}
+
+.folder-depth-4 .folder-label {
+    color: #20c997;
+    font-weight: 600;
+}
+
+/* Bordures et indentations pour les niveaux profonds */
+.folder-depth-1 .model-folder-content {
+    border-left-color: #6f42c1;
+}
+
+.folder-depth-2 .model-folder-content {
+    border-left-color: #d63384;
+}
+
+.folder-depth-3 .model-folder-content {
+    border-left-color: #fd7e14;
+}
+
+.folder-depth-4 .model-folder-content {
+    border-left-color: #20c997;
 }

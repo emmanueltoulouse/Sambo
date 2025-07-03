@@ -128,5 +128,170 @@ namespace Sambo {
         public void set_double(string section, string key, double value) {
             key_file.set_double(section, key, value);
         }
+
+        /**
+         * Structure pour représenter un nœud dans l'arborescence des modèles
+         */
+        public class ModelNode : Object {
+            public string name { get; set; }
+            public string full_path { get; set; }
+            public string size_str { get; set; }
+            public bool is_file { get; set; }
+            public Gee.List<ModelNode> children { get; set; }
+            
+            public ModelNode(string name, string full_path, bool is_file = false, string size_str = "") {
+                this.name = name;
+                this.full_path = full_path;
+                this.is_file = is_file;
+                this.size_str = size_str;
+                this.children = new Gee.ArrayList<ModelNode>();
+            }
+        }
+
+        /**
+         * Obtient l'arborescence des modèles disponibles
+         * @return Racine de l'arborescence des modèles
+         */
+        public ModelNode get_models_tree() {
+            string models_dir = get_string("AI", "models_directory", "");
+            var root = new ModelNode("Models", models_dir);
+            
+            print("Répertoire des modèles configuré : %s\n", models_dir);
+            
+            // Si un répertoire de modèles est configuré, scanner l'arborescence
+            if (models_dir != "" && FileUtils.test(models_dir, FileTest.IS_DIR)) {
+                try {
+                    build_models_tree(models_dir, root, models_dir);
+                } catch (Error e) {
+                    warning("Erreur lors du scan des modèles: %s", e.message);
+                }
+            }
+            
+            // Si aucun modèle n'est trouvé, ajouter des modèles par défaut
+            if (root.children.size == 0) {
+                print("Aucun modèle trouvé dans le répertoire, ajout des modèles par défaut\n");
+                var default_folder = new ModelNode("Modèles par défaut", "", false);
+                default_folder.children.add(new ModelNode("GPT-4", "", true));
+                default_folder.children.add(new ModelNode("Claude-3", "", true));
+                default_folder.children.add(new ModelNode("Llama-2", "", true));
+                default_folder.children.add(new ModelNode("Mistral-7B", "", true));
+                root.children.add(default_folder);
+            }
+            
+            print("Arborescence des modèles construite\n");
+            return root;
+        }
+
+        /**
+         * Construit récursivement l'arborescence des modèles
+         */
+        private void build_models_tree(string dir_path, ModelNode parent_node, string base_path) throws Error {
+            var dir = Dir.open(dir_path);
+            string? name;
+            
+            while ((name = dir.read_name()) != null) {
+                string full_path = Path.build_filename(dir_path, name);
+                
+                if (FileUtils.test(full_path, FileTest.IS_DIR)) {
+                    // Créer un nœud dossier
+                    var folder_node = new ModelNode(name, full_path, false);
+                    parent_node.children.add(folder_node);
+                    
+                    // Scanner récursivement le dossier
+                    build_models_tree(full_path, folder_node, base_path);
+                } else if (name.has_suffix(".gguf") || 
+                          name.has_suffix(".bin") || 
+                          name.has_suffix(".safetensors")) {
+                    
+                    // Obtenir la taille du fichier
+                    string size_str = "";
+                    try {
+                        var file = File.new_for_path(full_path);
+                        var file_info = file.query_info(FileAttribute.STANDARD_SIZE, FileQueryInfoFlags.NONE);
+                        int64 file_size = file_info.get_size();
+                        size_str = format_file_size(file_size);
+                    } catch (Error e) {
+                        size_str = "?";
+                    }
+                    
+                    // Nettoyer le nom du fichier
+                    string clean_name = name;
+                    if (name.has_suffix(".gguf")) {
+                        clean_name = name.substring(0, name.length - 5);
+                    } else if (name.has_suffix(".bin")) {
+                        clean_name = name.substring(0, name.length - 4);
+                    } else if (name.has_suffix(".safetensors")) {
+                        clean_name = name.substring(0, name.length - 12);
+                    }
+                    
+                    // Créer un nœud fichier
+                    var file_node = new ModelNode(clean_name, full_path, true, size_str);
+                    parent_node.children.add(file_node);
+                    
+                    print("Modèle trouvé : %s (taille: %s, chemin: %s)\n", clean_name, size_str, full_path);
+                }
+            }
+        }
+
+        /**
+         * Obtient la liste des modèles disponibles (compatibilité avec l'ancien code)
+         * @return Liste des noms de modèles
+         */
+        public string[] get_available_models() {
+            var models = new Gee.ArrayList<string>();
+            var tree = get_models_tree();
+            
+            flatten_tree_to_list(tree, "", models);
+            
+            return models.to_array();
+        }
+        
+        /**
+         * Aplatit l'arborescence en liste pour compatibilité
+         */
+        private void flatten_tree_to_list(ModelNode node, string path_prefix, Gee.ArrayList<string> models) {
+            if (node.is_file) {
+                string full_name = path_prefix.length > 0 ? @"$(path_prefix)/$(node.size_str) - $(node.name)" : @"$(node.size_str) - $(node.name)";
+                models.add(full_name);
+            } else {
+                string new_prefix = path_prefix.length > 0 ? @"$(path_prefix)/$(node.name)" : node.name;
+                if (node.name != "Models") { // Skip root
+                    foreach (var child in node.children) {
+                        flatten_tree_to_list(child, new_prefix, models);
+                    }
+                } else {
+                    foreach (var child in node.children) {
+                        flatten_tree_to_list(child, "", models);
+                    }
+                }
+            }
+        }
+        
+        /**
+         * Formate la taille d'un fichier en unités lisibles
+         */
+        private string format_file_size(int64 size_bytes) {
+            if (size_bytes < 1024) {
+                return @"$(size_bytes) B";
+            } else if (size_bytes < 1024 * 1024) {
+                int64 size_kb = size_bytes / 1024;
+                return @"$(size_kb) KB";
+            } else if (size_bytes < 1024 * 1024 * 1024) {
+                double size_mb = (double)size_bytes / (1024 * 1024);
+                int mb_rounded = (int)(size_mb * 10) / 10; // Arrondi à 1 décimale
+                if (size_mb - mb_rounded >= 0.05) {
+                    mb_rounded++;
+                }
+                return @"$(mb_rounded).$(((int)(size_mb * 10)) % 10) MB";
+            } else {
+                double size_gb = (double)size_bytes / (1024 * 1024 * 1024);
+                int gb_rounded = (int)(size_gb * 10) / 10; // Arrondi à 1 décimale
+                if (size_gb - gb_rounded >= 0.05) {
+                    gb_rounded++;
+                }
+                return @"$(gb_rounded).$(((int)(size_gb * 10)) % 10) GB";
+            }
+        }
+        
     }
 }
