@@ -1,0 +1,61 @@
+# Build directories
+build/
+builddir/
+*.p/
+
+# Generated files
+*-resources.c
+*-resources.h
+compile_commands.json
+*.ninja
+*.lock
+
+# Meson private and log files
+meson-private/
+meson-logs/
+meson-info/
+
+# Object files and executables
+*.o
+*.exe
+Sambo
+sambo
+
+# IDE files
+.vscode/
+*.swp
+*.swo
+*~
+
+# Log files
+*.log
+
+# Temporary files
+temp/
+*.tmp
+*.bak
+
+# Translation files (generated)
+*.mo
+
+# macOS
+.DS_Store
+
+# Linux
+*~
+
+# Vala specific
+*.c
+*.h
+*.stamp
+
+# But keep manually written C files if any
+!src/**/*.c
+!src/**/*.h
+
+# Keep Vala API files
+!vapi/*.vapi
+
+# Keep desktop and schema files
+!data/*.desktop.in
+!data/*.gschema.xml

@@ -1,0 +1,137 @@
+/* ===== STYLES GÉNÉRAUX ===== */
+.view {
+    background-color: rgba(240, 240, 240, 0.7);
+}
+
+.background {
+    background-color: white;
+}
+
+.card {
+    border-radius: 12px;
+}
+
+.section {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    padding-bottom: 6px;
+    margin-bottom: 6px;
+}
+
+/* ===== BARRE D'OUTILS ===== */
+.toolbar {
+    padding: 6px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* ===== CHAT ===== */
+.chat-view {
+    background-color: #ffffff;
+}
+
+.chat-bubble {
+    padding: 4px;
+    margin: 6px 0;
+    border-radius: 8px;
+}
+
+.bubble-content {
+    padding: 8px 12px;
+    border-radius: 18px;
+}
+
+.user-bubble .bubble-content {
+    background-color: #3584e4;
+    color: white;
+}
+
+.ai-bubble .bubble-content {
+    background-color: #f0f0f0;
+    color: #202020;
+}
+
+.bubble-text {
+    margin: 2px 0;
+}
+
+.bubble-time {
+    font-size: 80%;
+    opacity: 0.8;
+}
+
+.chat-entry {
+    border-radius: 20px;
+    padding: 8px 16px;
+    margin: 8px;
+}
+
+.send-button {
+    border-radius: 50%;
+    padding: 8px;
+    margin: 8px;
+}
+
+/* ===== EXPLORATEUR ===== */
+.file-list {
+    background-color: white;
+}
+
+/* ===== TOOLTIPS ===== */
+tooltip {
+    background-color: #fff;
+    color: #111;
+    border-radius: 8px;
+    border: none;
+}
+
+tooltip > label, tooltip label {
+    color: #111;
+    font-weight: normal;
+    text-shadow: none;
+}
+
+/* ===== ONGLETS ===== */
+.tab-label-green {
+    color: #2ec27e; /* Vert - document sauvegardé */
+    font-weight: normal;
+}
+
+.tab-label-yellow {
+    color: #e5a50a; /* Jaune - document modifié */
+    font-weight: bold;
+}
+
+.tab-label-black {
+    color: #000000; /* Noir - nouvel onglet vide */
+    font-weight: normal;
+}
+
+/* ===== SUPPORT DU THÈME SYSTÈME ===== */
+@define-color theme_bg_color @theme_base_color;
+@define-color theme_fg_color @theme_text_color;
+
+.editor-statusbar-box {
+    background: #ececec;
+    border-top: 1px solid #d0d0d0;
+    padding: 4px 10px 4px 10px;
+    min-height: 28px;
+}
+
+.editor-statusbar-label {
+    font-weight: bold;
+    color: #333;
+}
+
+.editor-statusbar-file {
+    font-weight: bold;
+    color: #222;
+    margin-right: 16px;
+}
+
+.editor-statusbar-provenance {
+    color: #666;
+    margin-right: 16px;
+}
+.color-icon {
+    font-size: 1.2em;
+    margin-right: 4px;
+}

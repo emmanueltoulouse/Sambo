@@ -1,0 +1,18 @@
+
+
+**Prompt pour GitHub Copilot ou un développeur :**
+
+> Implémente un éditeur WYSIWYG 100% libre et natif GNOME/Debian pour mon application Vala/GTK4, respectant le pattern MVC et l’architecture existante.  
+> 
+> Contraintes et objectifs :
+> - L’éditeur doit permettre la création et l’édition visuelle de tous les éléments Markdown courants utilisés par les IA génératives : titres, listes, tableaux, blocs de code, citations, images, liens, etc.
+> - Le format pivot interne doit être un AST Vala structuré (une classe par type de bloc/élément), indépendant du format d’entrée/sortie.
+> - L’édition WYSIWYG doit reposer sur des composants GTK4 natifs : privilégier GtkSourceView pour le texte enrichi, Gtk.TextTag pour le formatage, Gtk.TextChildAnchor pour les images et (si possible) les tableaux.
+> - Pour les tableaux, si l’édition directe dans Gtk.TextView est trop limitée, proposer une boîte de dialogue dédiée pour l’édition des tableaux, insérable via un widget d’ancrage.
+> - L’éditeur doit permettre l’import/export Markdown et HTML via le pivot, en utilisant des bibliothèques libres (ex : cmark-gfm pour Markdown, libxml2 pour HTML).
+> - L’interface doit être élégante, accessible, et conforme aux recommandations GNOME (Libadwaita, raccourcis clavier, barre d’outils, etc.).
+> - Toute la logique de conversion, synchronisation AST <-> vue, et gestion des balises doit être factorisée et documentée.
+> 
+> Fournis le plan de structure des classes, les interactions principales, et les points d’extension pour l’avenir (ex : support ODF/PDF).
+
+

@@ -1,0 +1,10 @@
+[wrap-git]
+url = https://github.com/ggerganov/llama.cpp.git
+revision = master
+depth = 1
+
+[provide]
+dependency_names = llama
+
+[cmake]
+cmake_args = -DGGML_STATIC=ON, -DLLAMA_STATIC=ON, -DLLAMA_BUILD_EXAMPLES=OFF, -DLLAMA_BUILD_TESTS=OFF, -DLLAMA_BUILD_SERVER=OFF

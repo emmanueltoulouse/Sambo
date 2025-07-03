@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="com.cabineteto.Sambo" path="/com/cabineteto/Sambo/">
+    <!-- Préférences générales -->
+    <key name="window-width" type="i">
+      <default>1200</default>
+      <summary>Window width</summary>
+      <description>The width of the main window</description>
+    </key>
+
+    <key name="window-height" type="i">
+      <default>800</default>
+      <summary>Window height</summary>
+      <description>The height of the main window</description>
+    </key>
+
+    <key name="window-maximized" type="b">
+      <default>false</default>
+      <summary>Window maximized</summary>
+      <description>Whether the window is maximized</description>
+    </key>
+
+    <!-- Préférences pour les modèles IA -->
+    <key name="models-base-directory" type="s">
+      <default>""</default>
+      <summary>Models base directory</summary>
+      <description>Base directory where AI models are stored</description>
+    </key>
+
+    <key name="huggingface-api-key" type="s">
+      <default>""</default>
+      <summary>HuggingFace API key</summary>
+      <description>API key for accessing HuggingFace models</description>
+    </key>
+
+    <!-- Préférences d'édition -->
+    <key name="editor-theme" type="s">
+      <default>"default"</default>
+      <summary>Editor theme</summary>
+      <description>Theme used for the text editor</description>
+    </key>
+
+    <key name="editor-font-size" type="i">
+      <default>12</default>
+      <summary>Editor font size</summary>
+      <description>Font size for the text editor</description>
+    </key>
+
+    <key name="editor-show-line-numbers" type="b">
+      <default>true</default>
+      <summary>Show line numbers</summary>
+      <description>Whether to show line numbers in the editor</description>
+    </key>
+
+    <key name="editor-highlight-current-line" type="b">
+      <default>true</default>
+      <summary>Highlight current line</summary>
+      <description>Whether to highlight the current line in the editor</description>
+    </key>
+
+    <key name="editor-auto-indent" type="b">
+      <default>true</default>
+      <summary>Auto indent</summary>
+      <description>Whether to automatically indent new lines</description>
+    </key>
+
+    <key name="editor-wrap-text" type="b">
+      <default>false</default>
+      <summary>Wrap text</summary>
+      <description>Whether to wrap long lines in the editor</description>
+    </key>
+  </schema>
+</schemalist>

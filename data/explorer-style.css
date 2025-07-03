@@ -1,0 +1,256 @@
+/* Styles pour l'explorateur de fichiers */
+
+/* Fil d'Ariane */
+.breadcrumb-box {
+    padding: 4px;
+    background-color: alpha(#ddd, 0.3);
+    border-radius: 4px;
+}
+
+.breadcrumb-button {
+    padding: 2px 6px;
+    min-height: 24px;
+}
+
+.breadcrumb-separator {
+    margin: 0 2px;
+    opacity: 0.7;
+}
+
+.breadcrumb-current {
+    font-weight: bold;
+    background-color: alpha(#ddd, 0.2);
+    border-radius: 4px;
+}
+
+/* Liste de fichiers */
+.file-list {
+    border: 1px solid alpha(#000, 0.1);
+}
+
+.file-list > *:hover {
+    background-color: alpha(#3584e4, 0.1);
+}
+
+.file-list > *:selected {
+    background-color: alpha(#3584e4, 0.2);
+}
+
+/* Liste compacte */
+.compact-file-list {
+    border: 1px solid alpha(#000, 0.1);
+    font-size: 90%;
+}
+
+.compact-file-list > *:hover {
+    background-color: alpha(#3584e4, 0.1);
+}
+
+.compact-file-list > *:selected {
+    background-color: alpha(#3584e4, 0.2);
+}
+
+/* Vue en icônes */
+.icon-view {
+    padding: 10px;
+}
+
+.icon-view > flowboxchild {
+    padding: 4px;
+    border-radius: 6px;
+}
+
+.icon-view > flowboxchild:hover {
+    background-color: alpha(#3584e4, 0.1);
+}
+
+.icon-view > flowboxchild:selected {
+    background-color: alpha(#3584e4, 0.2);
+}
+
+/* Styles pour la recherche */
+.search-info-bar {
+    background-color: alpha(#3584e4, 0.1);
+    border-radius: 6px;
+    border: 1px solid alpha(#3584e4, 0.2);
+}
+
+.search-result-item {
+    border-bottom: 1px solid alpha(#000, 0.1);
+}
+
+.search-context {
+    color: #666;
+    font-style: italic;
+    font-size: 0.9em;
+}
+
+.search-highlight {
+    background-color: yellow;
+    color: black;
+}
+
+/* Boîte de dialogue de recherche avancée */
+.search-dialog-section {
+    margin-top: 12px;
+    margin-bottom: 12px;
+}
+
+.search-dialog-label {
+    font-weight: bold;
+}
+
+/* Styles pour le panneau latéral */
+.navigation-sidebar {
+    background-color: transparent;
+}
+
+.navigation-sidebar row:selected {
+    background-color: alpha(#3584e4, 0.3);
+}
+
+.navigation-sidebar row:hover:not(:selected) {
+    background-color: alpha(#3584e4, 0.1);
+}
+
+/* Styles pour les textes d'info dans le panneau latéral */
+.sidebar-info-label {
+    font-size: 0.9em;
+    color: alpha(currentColor, 0.7);
+}
+
+/* Styles pour la prévisualisation */
+.preview-widget {
+    background-color: #f5f5f5;
+    border-left: 1px solid alpha(#000, 0.1);
+}
+
+.preview-text textview {
+    padding: 12px;
+}
+
+.preview-title {
+    font-weight: bold;
+    font-size: 1.1em;
+    padding: 6px 0;
+}
+
+#no-preview-label {
+    margin: 20px;
+    font-style: italic;
+    opacity: 0.6;
+}
+
+/* Sytles pour la coloration syntaxique */
+.keyword {
+    color: #0000FF;
+    font-weight: bold;
+}
+
+.string {
+    color: #A31515;
+}
+
+.comment {
+    color: #008000;
+    font-style: italic;
+}
+
+/* Styles pour la comparaison de fichiers */
+.diff-view {
+    font-family: monospace;
+    font-size: 12px;
+}
+
+/* Styles pour le mode comparaison */
+.comparison-only-here {
+    background-color: alpha(#0db40d, 0.1);  /* Vert clair pour les fichiers présents uniquement ici */
+}
+
+.comparison-different {
+    background-color: alpha(#f5c211, 0.1);  /* Jaune pour les fichiers différents */
+}
+
+.comparison-identical {
+    background-color: alpha(#865e3c, 0.03);  /* Marron très clair pour les fichiers identiques */
+}
+
+/* En-têtes de comparaison */
+.comparison-header {
+    font-weight: bold;
+    border-bottom: 1px solid alpha(#000, 0.1);
+    padding: 3px 6px;
+    background-color: alpha(#3584e4, 0.05);
+}
+
+/* Styles pour le comparateur de fichiers */
+.diff-added {
+    background-color: alpha(#8ff08f, 0.3);
+}
+
+.diff-removed {
+    background-color: alpha(#f08f8f, 0.3);
+}
+
+.diff-changed {
+    background-color: alpha(#f0f08f, 0.3);
+}
+
+.diff-line-number {
+    color: #777;
+    background-color: alpha(#ddd, 0.3);
+    padding: 0 5px;
+    border-right: 1px solid #ccc;
+    user-select: none;
+}
+
+.diff-stats {
+    font-size: 0.9em;
+    padding: 5px;
+    background-color: alpha(#eee, 0.5);
+    border-top: 1px solid #ddd;
+}
+
+.diff-panel-title {
+    font-weight: bold;
+    background-color: alpha(#3584e4, 0.1);
+    padding: 5px;
+    border-bottom: 1px solid #ddd;
+}
+
+.diff-navigation-button {
+    padding: 2px 6px;
+    margin: 0 2px;
+}
+
+.file-pinned-tab {
+    font-style: italic;
+    font-weight: bold;
+}
+
+/* Style pour les onglets épinglés */
+.pinned-tab-label {
+    font-weight: bold;
+}
+
+/* Style pour les boutons de synchronisation */
+.sync-button {
+    background-color: alpha(#3584e4, 0.1);
+    border-radius: 4px;
+}
+
+.sync-button:hover {
+    background-color: alpha(#3584e4, 0.2);
+}
+
+/* Style pour les onglets en mode comparaison */
+.comparison-tab {
+    border-color: alpha(#f5c211, 0.5);
+    border-bottom: 2px solid;
+}
+
+/* Style pour le bouton de filtre avec des filtres actifs */
+.filter-active {
+    background-color: alpha(#3584e4, 0.15);
+    border-radius: 4px;
+}

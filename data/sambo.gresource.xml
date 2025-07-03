@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/com/cabineteto/Sambo">
+    <file>icons/hicolor/scalable/apps/com.cabineteto.Sambo.png</file>
+    <file>style.css</file>
+    <file>explorer-style.css</file>
+  </gresource>
+</gresources>
