@@ -12,6 +12,7 @@ namespace Sambo {
         private Entry message_entry;
         private Button send_button;
         private Button model_selector_button;
+        private Button sampling_params_button;
         private Label model_label;
         private Label status_label;
         private Adw.ToastOverlay toast_overlay;
@@ -119,6 +120,35 @@ namespace Sambo {
             
             // Ajouter le bouton à la toolbar
             toolbar.append(model_selector_button);
+            
+            // Bouton de paramètres de sampling
+            sampling_params_button = new Button();
+            sampling_params_button.add_css_class("sampling-params-button");
+            sampling_params_button.add_css_class("flat");
+            
+            // Créer un conteneur pour l'icône et le texte du bouton de paramètres
+            var params_button_content = new Box(Orientation.HORIZONTAL, 6);
+            
+            // Icône des paramètres (utilise l'icône de réglages)
+            var params_icon = new Image.from_icon_name("preferences-system-symbolic");
+            params_icon.set_icon_size(IconSize.NORMAL);
+            params_icon.add_css_class("params-icon");
+            
+            // Label pour les paramètres
+            var params_label = new Label("Paramètres");
+            params_label.add_css_class("params-label");
+            
+            params_button_content.append(params_icon);
+            params_button_content.append(params_label);
+            
+            sampling_params_button.set_child(params_button_content);
+            sampling_params_button.set_tooltip_text("Configurer les paramètres de génération");
+            
+            // Connecter le signal
+            sampling_params_button.clicked.connect(on_sampling_params_clicked);
+            
+            // Ajouter le bouton des paramètres à la toolbar
+            toolbar.append(sampling_params_button);
             
             // Spacer pour pousser les éléments vers la droite si nécessaire
             var spacer = new Box(Orientation.HORIZONTAL, 0);
@@ -781,6 +811,193 @@ namespace Sambo {
             popover.popdown();
             
             print("Utilisation des modèles par défaut\n");
+        }
+        
+        /**
+         * Gestionnaire pour le clic sur le bouton de paramètres de sampling
+         */
+        private void on_sampling_params_clicked() {
+            show_sampling_params_dialog();
+        }
+
+        /**
+         * Affiche la fenêtre de dialogue des paramètres de sampling
+         */
+        private void show_sampling_params_dialog() {
+            // Obtenir la fenêtre parent
+            var parent_window = this.get_root() as Gtk.Window;
+            
+            // Créer la fenêtre de dialogue
+            var dialog = new Adw.Window();
+            dialog.set_title("Paramètres de génération");
+            dialog.set_default_size(400, 500);
+            dialog.set_modal(true);
+            dialog.set_transient_for(parent_window);
+            
+            // Créer la boîte principale qui contient tout
+            var main_box = new Box(Orientation.VERTICAL, 0);
+            
+            // Créer la barre d'en-tête
+            var header_bar = new Adw.HeaderBar();
+            header_bar.set_title_widget(new Gtk.Label("Paramètres de génération"));
+            
+            // Bouton de fermeture
+            var close_button = new Button.with_label("Fermer");
+            close_button.add_css_class("suggested-action");
+            close_button.clicked.connect(() => {
+                dialog.close();
+            });
+            header_bar.pack_end(close_button);
+            
+            // Bouton de réinitialisation
+            var reset_button = new Button.with_label("Réinitialiser");
+            reset_button.clicked.connect(() => {
+                reset_sampling_params();
+            });
+            header_bar.pack_start(reset_button);
+            
+            main_box.append(header_bar);
+            
+            // Créer le contenu principal
+            var content_box = new Box(Orientation.VERTICAL, 0);
+            content_box.set_margin_start(24);
+            content_box.set_margin_end(24);
+            content_box.set_margin_top(24);
+            content_box.set_margin_bottom(24);
+            
+            // Créer les groupes de paramètres
+            var sampling_group = create_sampling_group();
+            var generation_group = create_generation_group();
+            var advanced_group = create_advanced_group();
+            
+            content_box.append(sampling_group);
+            content_box.append(generation_group);
+            content_box.append(advanced_group);
+            
+            // Créer une zone de défilement pour le contenu
+            var scroll_view = new ScrolledWindow();
+            scroll_view.set_policy(PolicyType.NEVER, PolicyType.AUTOMATIC);
+            scroll_view.set_child(content_box);
+            scroll_view.set_vexpand(true);
+            
+            main_box.append(scroll_view);
+            
+            dialog.set_content(main_box);
+            dialog.present();
+        }
+
+        /**
+         * Crée le groupe de paramètres de sampling
+         */
+        private Adw.PreferencesGroup create_sampling_group() {
+            var group = new Adw.PreferencesGroup();
+            group.set_title("Paramètres de sampling");
+            group.set_description("Contrôlez la créativité et la randomness de la génération");
+            
+            // Température (0.0 - 2.0)
+            var temp_row = new Adw.SpinRow.with_range(0.0, 2.0, 0.1);
+            temp_row.set_title("Température");
+            temp_row.set_subtitle("Contrôle la créativité (0.1 = déterministe, 1.0 = équilibré, 2.0 = très créatif)");
+            temp_row.set_value(0.7);
+            group.add(temp_row);
+            
+            // Top-P (0.0 - 1.0)
+            var top_p_row = new Adw.SpinRow.with_range(0.0, 1.0, 0.05);
+            top_p_row.set_title("Top-P (nucleus sampling)");
+            top_p_row.set_subtitle("Limite les tokens à considérer selon leur probabilité cumulative");
+            top_p_row.set_value(0.9);
+            group.add(top_p_row);
+            
+            // Top-K (1 - 100)
+            var top_k_row = new Adw.SpinRow.with_range(1, 100, 1);
+            top_k_row.set_title("Top-K");
+            top_k_row.set_subtitle("Nombre maximum de tokens à considérer");
+            top_k_row.set_value(40);
+            group.add(top_k_row);
+            
+            return group;
+        }
+
+        /**
+         * Crée le groupe de paramètres de génération
+         */
+        private Adw.PreferencesGroup create_generation_group() {
+            var group = new Adw.PreferencesGroup();
+            group.set_title("Paramètres de génération");
+            group.set_description("Contrôlez la longueur et la structure des réponses");
+            
+            // Max tokens (1 - 4096)
+            var max_tokens_row = new Adw.SpinRow.with_range(1, 4096, 1);
+            max_tokens_row.set_title("Tokens maximum");
+            max_tokens_row.set_subtitle("Longueur maximale de la réponse générée");
+            max_tokens_row.set_value(512);
+            group.add(max_tokens_row);
+            
+            // Repetition penalty (0.0 - 2.0)
+            var rep_penalty_row = new Adw.SpinRow.with_range(0.0, 2.0, 0.05);
+            rep_penalty_row.set_title("Pénalité de répétition");
+            rep_penalty_row.set_subtitle("Évite les répétitions (1.0 = aucune pénalité, 1.1 = recommandé)");
+            rep_penalty_row.set_value(1.1);
+            group.add(rep_penalty_row);
+            
+            // Frequency penalty (-2.0 - 2.0)
+            var freq_penalty_row = new Adw.SpinRow.with_range(-2.0, 2.0, 0.1);
+            freq_penalty_row.set_title("Pénalité de fréquence");
+            freq_penalty_row.set_subtitle("Réduit la probabilité des tokens fréquents");
+            freq_penalty_row.set_value(0.0);
+            group.add(freq_penalty_row);
+            
+            // Presence penalty (-2.0 - 2.0)
+            var presence_penalty_row = new Adw.SpinRow.with_range(-2.0, 2.0, 0.1);
+            presence_penalty_row.set_title("Pénalité de présence");
+            presence_penalty_row.set_subtitle("Encourage l'utilisation de nouveaux concepts");
+            presence_penalty_row.set_value(0.0);
+            group.add(presence_penalty_row);
+            
+            return group;
+        }
+
+        /**
+         * Crée le groupe de paramètres avancés
+         */
+        private Adw.PreferencesGroup create_advanced_group() {
+            var group = new Adw.PreferencesGroup();
+            group.set_title("Paramètres avancés");
+            group.set_description("Options pour utilisateurs expérimentés");
+            
+            // Seed (-1 pour aléatoire, ou valeur fixe)
+            var seed_row = new Adw.SpinRow.with_range(-1, 999999999, 1);
+            seed_row.set_title("Seed aléatoire");
+            seed_row.set_subtitle("Graine pour la génération (-1 = aléatoire)");
+            seed_row.set_value(-1);
+            group.add(seed_row);
+            
+            // Context length (512 - 8192)
+            var context_row = new Adw.SpinRow.with_range(512, 8192, 128);
+            context_row.set_title("Longueur du contexte");
+            context_row.set_subtitle("Taille de la fenêtre de contexte du modèle");
+            context_row.set_value(2048);
+            group.add(context_row);
+            
+            // Switch pour streaming
+            var streaming_row = new Adw.SwitchRow();
+            streaming_row.set_title("Streaming");
+            streaming_row.set_subtitle("Afficher la réponse en temps réel pendant la génération");
+            streaming_row.set_active(true);
+            group.add(streaming_row);
+            
+            return group;
+        }
+
+        /**
+         * Réinitialise tous les paramètres de sampling aux valeurs par défaut
+         */
+        private void reset_sampling_params() {
+            // Ici on pourrait sauvegarder/charger les paramètres depuis la configuration
+            // Pour l'instant, on affiche juste un toast de confirmation
+            var toast = new Adw.Toast("Paramètres réinitialisés aux valeurs par défaut");
+            toast.set_timeout(2);
+            toast_overlay.add_toast(toast);
         }
     }
 }
