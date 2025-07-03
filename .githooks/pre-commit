@@ -1,0 +1,31 @@
+#!/bin/bash
+# Pre-commit hook pour vérifier le code avant commit
+
+echo "🔍 Vérification du code avant commit..."
+
+# Vérifier les fichiers Vala
+echo "Vérification des fichiers Vala..."
+find src -name '*.vala' | while read file; do
+    if grep -q "    " "$file"; then
+        echo "❌ ERREUR: Espaces en début de ligne dans $file"
+        exit 1
+    fi
+    if grep -q $'\t' "$file"; then
+        echo "❌ ERREUR: Tabulations dans $file"
+        exit 1
+    fi
+done
+
+# Vérifier que le projet compile
+echo "Vérification de la compilation..."
+if [ -d "build" ]; then
+    if ! meson compile -C build > /dev/null 2>&1; then
+        echo "❌ ERREUR: Le projet ne compile pas"
+        exit 1
+    fi
+else
+    echo "⚠️  ATTENTION: Dossier build non trouvé, compilation non vérifiée"
+fi
+
+echo "✅ Vérifications réussies, commit autorisé"
+exit 0
