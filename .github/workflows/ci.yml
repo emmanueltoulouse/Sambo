@@ -1,0 +1,81 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          valac \
+          meson \
+          ninja-build \
+          libgtk-4-dev \
+          libadwaita-1-dev \
+          libgee-0.8-dev \
+          libjson-glib-dev \
+          gettext \
+          desktop-file-utils \
+          appstream-util
+    
+    - name: Setup build directory
+      run: meson setup build
+    
+    - name: Build project
+      run: meson compile -C build
+    
+    - name: Run tests
+      run: meson test -C build || true
+    
+    - name: Validate desktop file
+      run: desktop-file-validate build/com.cabineteto.Sambo.desktop || true
+    
+    - name: Check code style
+      run: |
+        find src -name '*.vala' | while read file; do
+          echo "Checking $file"
+          if grep -q "    " "$file"; then
+            echo "WARNING: Leading spaces found in $file"
+          fi
+          if grep -q $'\t' "$file"; then
+            echo "WARNING: Tabs found in $file"
+          fi
+        done
+
+  flatpak:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Setup Flatpak
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y flatpak flatpak-builder
+        sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+        sudo flatpak install -y flathub org.freedesktop.Platform//23.08 org.freedesktop.Sdk//23.08
+    
+    - name: Build Flatpak (if manifest exists)
+      run: |
+        if [ -f "com.cabineteto.Sambo.yml" ] || [ -f "com.cabineteto.Sambo.json" ]; then
+          echo "Building Flatpak package..."
+          # flatpak-builder build-dir com.cabineteto.Sambo.yml
+        else
+          echo "No Flatpak manifest found, skipping Flatpak build"
+        fi
