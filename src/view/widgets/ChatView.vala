@@ -11,6 +11,7 @@ namespace Sambo {
         private Box message_container;
         private Entry message_entry;
         private Button send_button;
+        private Button model_selector_button;
         private bool is_processing = false;
 
         /**
@@ -22,6 +23,9 @@ namespace Sambo {
 
             // Ajouter la classe CSS
             this.add_css_class("chat-view");
+
+            // Créer la barre d'outils du chat
+            create_chat_toolbar();
 
             // Conteneur pour les messages
             message_container = new Box(Orientation.VERTICAL, 10);
@@ -56,6 +60,65 @@ namespace Sambo {
             // Message de bienvenue
             var welcome = new ChatMessage("Bonjour ! Comment puis-je vous aider aujourd'hui ?", ChatMessage.SenderType.AI);
             add_message(welcome);
+        }
+
+        /**
+         * Crée la barre d'outils spécifique au chat
+         */
+        private void create_chat_toolbar() {
+            var toolbar = new Box(Orientation.HORIZONTAL, 6);
+            toolbar.add_css_class("chat-toolbar");
+
+            // Bouton de sélection de modèle
+            model_selector_button = new Button();
+            model_selector_button.add_css_class("model-selector-button");
+            model_selector_button.add_css_class("flat");
+            
+            // Créer un conteneur pour l'icône et le texte
+            var button_content = new Box(Orientation.HORIZONTAL, 6);
+            
+            // Icône du modèle (utilise l'icône brain ou cpu selon disponibilité)
+            var model_icon = new Image.from_icon_name("applications-science-symbolic");
+            model_icon.set_icon_size(IconSize.NORMAL);
+            model_icon.add_css_class("model-icon");
+            
+            // Label pour le modèle actuel
+            var model_label = new Label("GPT-4");
+            model_label.add_css_class("model-label");
+            
+            // Icône de dropdown
+            var dropdown_icon = new Image.from_icon_name("pan-down-symbolic");
+            dropdown_icon.set_icon_size(IconSize.NORMAL);
+            dropdown_icon.add_css_class("dropdown-icon");
+            
+            button_content.append(model_icon);
+            button_content.append(model_label);
+            button_content.append(dropdown_icon);
+            
+            model_selector_button.set_child(button_content);
+            model_selector_button.set_tooltip_text("Sélectionner un modèle IA");
+            
+            // Connecter le signal (pour plus tard)
+            model_selector_button.clicked.connect(on_model_selector_clicked);
+            
+            // Ajouter le bouton à la toolbar
+            toolbar.append(model_selector_button);
+            
+            // Spacer pour pousser les éléments vers la droite si nécessaire
+            var spacer = new Box(Orientation.HORIZONTAL, 0);
+            spacer.set_hexpand(true);
+            toolbar.append(spacer);
+            
+            // Ajouter la toolbar à la vue principale
+            this.append(toolbar);
+        }
+
+        /**
+         * Gestionnaire temporaire pour le clic sur le sélecteur de modèle
+         */
+        private void on_model_selector_clicked() {
+            // TODO: Implémenter la logique de sélection de modèle
+            print("Bouton de sélection de modèle cliqué\n");
         }
 
         /**

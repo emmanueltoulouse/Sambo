@@ -28,6 +28,46 @@
     background-color: #ffffff;
 }
 
+.chat-toolbar {
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    background-color: #fafafa;
+}
+
+.model-selector-button {
+    border-radius: 20px;
+    padding: 6px 12px;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    background-color: white;
+    transition: all 200ms ease;
+}
+
+.model-selector-button:hover {
+    background-color: #f0f0f0;
+    border-color: rgba(0, 0, 0, 0.18);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.model-selector-button:active {
+    background-color: #e0e0e0;
+    transform: scale(0.98);
+}
+
+.model-selector-button .model-icon {
+    color: #3584e4;
+}
+
+.model-selector-button .model-label {
+    font-weight: 500;
+    font-size: 0.9em;
+    color: #2d2d2d;
+}
+
+.model-selector-button .dropdown-icon {
+    color: #666666;
+    margin-left: 2px;
+}
+
 .chat-bubble {
     padding: 4px;
     margin: 6px 0;
