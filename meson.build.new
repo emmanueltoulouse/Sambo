@@ -27,38 +27,12 @@ json_dep = dependency('json-glib-1.0', required: true)
 gio_dep = dependency('gio-2.0', required: true)
 soup_dep = dependency('libsoup-3.0', required: true)
 
-# Détection précoce de llama.cpp et définition des flags globaux
-have_llama_cpp = false
-
-# Vérifier si le sous-projet llama existe
-if fs.is_dir('subprojects/llama')
-  message('Tentative de chargement de llama.cpp depuis subprojects/')
-  have_llama_cpp = true
-else
-  # Essayer de trouver llama.cpp installé dans le système
-  if meson.get_compiler('c').find_library('llama',
-     dirs: ['/usr/local/lib', '/usr/lib'],
-     required: false).found()
-    have_llama_cpp = true
-  elif meson.get_compiler('c').has_header('llama.h',
-       args: ['-I/usr/local/include'])
-    have_llama_cpp = true
-  endif
-endif
-
-# Définir HAVE_LLAMA_CPP maintenant, avant toute autre cible
-if have_llama_cpp
-  add_global_arguments('-DHAVE_LLAMA_CPP=1', language: 'c')
-  message('HAVE_LLAMA_CPP défini - mode llama.cpp réel activé')
-else
-  message('Mode simulation activé - llama.cpp non disponible')
-endif
-
-# Maintenant charger les dépendances llama.cpp
+# Dépendance llama.cpp - d'abord essayer le sous-projet
 llama_dep = dependency('', required: false)  # Initialisation
 
 # Vérifier si le sous-projet llama existe et le charger
 if fs.is_dir('subprojects/llama')
+  message('Tentative de chargement de llama.cpp depuis subprojects/')
   llama_subproject = cmake.subproject('llama')
   llama_dep = llama_subproject.dependency('llama')
   message('llama.cpp chargé avec succès depuis subprojects/')
@@ -80,13 +54,21 @@ if not llama_dep.found()
      args: ['-I/usr/local/include'])
     llama_dep = declare_dependency(
       link_args: ['-L/usr/local/lib', '-lllama'],
-      compile_args: ['-I/usr/local/include']
+      compile_args: ['-I/usr/local/include', '-DHAVE_LLAMA_CPP=1']
     )
     message('llama.cpp trouvé dans /usr/local')
   else
     warning('llama.cpp non trouvé, mode simulation activé')
     llama_dep = dependency('', required: false)  # Dépendance vide
   endif
+endif
+
+# Définir HAVE_LLAMA_CPP si llama.cpp est trouvé AVANT toute autre cible
+if llama_dep.found()
+  add_global_arguments('-DHAVE_LLAMA_CPP=1', language: 'c')
+  message('HAVE_LLAMA_CPP défini - mode llama.cpp réel activé')
+else
+  message('Mode simulation activé - llama.cpp non disponible')
 endif
 
 # Vérifier si l'icône existe dans le répertoire personnel de l'utilisateur
@@ -196,7 +178,7 @@ install_data('data/com.cabineteto.Sambo.gschema.xml',
              install_dir: schema_output_dir)
 
 # Application exécutable principal
-executable('Sambo',
+executable = executable('Sambo',
     sources, resources,
     dependencies: dependencies,
     vala_args: [
@@ -206,7 +188,7 @@ executable('Sambo',
         '--pkg=gee-0.8',
         '--pkg=libadwaita-1',
         '--pkg=gtk4',
-        '--vapidir=' + meson.current_source_dir() + '/vapi',
+        '--vapidir=vapi',
         '--pkg=llama',
         '--color=always'
     ],
@@ -215,20 +197,20 @@ executable('Sambo',
     install: true
 )
 
-# Fichier de bureau (.desktop) - temporairement commenté
-# configure_file(
-#     input: 'data/com.cabineteto.Sambo.desktop.in',
-#     output: 'com.cabineteto.Sambo.desktop',
-#     configuration: {
-#         'BINDIR': get_option('bindir'),
-#     },
-#     install: true,
-#     install_dir: join_paths(get_option('datadir'), 'applications')
-# )
+# Fichier de bureau (.desktop)
+configure_file(
+    input: 'data/com.cabineteto.Sambo.desktop.in',
+    output: 'com.cabineteto.Sambo.desktop',
+    configuration: {
+        'BINDIR': get_option('bindir'),
+    },
+    install: true,
+    install_dir: join_paths(get_option('datadir'), 'applications')
+)
 
-# Icônes (temporairement commenté pour éviter les erreurs de fichiers manquants)
-# install_data(join_paths('data', 'icons', 'hicolor', 'scalable', 'apps', 'com.cabineteto.Sambo.svg'),
-#              install_dir: join_paths(get_option('datadir'), 'icons', 'hicolor', 'scalable', 'apps'))
+# Icônes
+install_data(join_paths('data', 'icons', 'hicolor', 'scalable', 'apps', 'com.cabineteto.Sambo.svg'),
+             install_dir: join_paths(get_option('datadir'), 'icons', 'hicolor', 'scalable', 'apps'))
 
 # Scripts utiles
 install_data('scripts/install_icon_and_desktop.sh',

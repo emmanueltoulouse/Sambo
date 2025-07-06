@@ -14,7 +14,7 @@
 - **Dossiers repliés par défaut** : tous les dossiers commencent fermés pour une interface propre
 - **Widgets Expander** pour chaque dossier avec possibilité de plier/déplier
 - **Indentation visuelle** selon la profondeur de l'arborescence
-- **Icônes différentiées** : 
+- **Icônes différentiées** :
   - 📁 pour les dossiers
   - 🔬 pour les fichiers modèles
   - ✅ pour le modèle sélectionné

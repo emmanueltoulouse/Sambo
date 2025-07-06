@@ -78,32 +78,32 @@ namespace Sambo {
 
             stderr.printf("📂 MODELMANAGER: Chargement du modèle : %s\n", model_path);
 
-            // Mode simulation si llama.cpp n'est pas disponible
-            if (is_simulation_mode) {
-                return load_model_simulation(model_path);
-            }
-
+            // Toujours tenter de charger via le wrapper C (qui gère le mode simulation)
             try {
-                // Tentative de chargement réel du modèle via wrapper
+                // Tentative de chargement du modèle via wrapper
                 bool success = Llama.load_model(model_path);
-                
+
                 if (!success) {
                     throw new IOError.FAILED("Échec du chargement du modèle");
                 }
-                
-                // Succès du chargement réel
+
+                // Succès du chargement
                 current_model_path = model_path;
                 is_model_loaded = true;
-                
+
                 string model_name = Path.get_basename(model_path);
-                print("Modèle chargé avec succès : %s\n", model_name);
-                
+                if (is_simulation_mode) {
+                    print("Modèle chargé avec succès en simulation : %s\n", model_name);
+                } else {
+                    print("Modèle chargé avec succès : %s\n", model_name);
+                }
+
                 model_loaded(model_path, model_name);
                 return true;
-                
+
             } catch (Error e) {
-                // En cas d'erreur, basculer en mode simulation si possible
-                warning("Erreur lors du chargement réel, tentative en mode simulation : %s", e.message);
+                // En cas d'erreur, essayer le mode simulation legacy
+                warning("Erreur lors du chargement via wrapper, tentative simulation legacy : %s", e.message);
                 return load_model_simulation(model_path);
             }
         }
@@ -113,32 +113,32 @@ namespace Sambo {
          */
         private bool load_model_simulation(string model_path) {
             print("Mode simulation : chargement simulé du modèle %s\n", model_path);
-            
+
             // Simuler un délai de chargement
             Thread.usleep(500000); // 0.5 seconde
-            
+
             // Vérifier la taille du fichier (simulation de validation)
             try {
                 var file = File.new_for_path(model_path);
                 var file_info = file.query_info(FileAttribute.STANDARD_SIZE, FileQueryInfoFlags.NONE);
                 int64 file_size = file_info.get_size();
-                
+
                 if (file_size < 1024) { // Fichier trop petit
                     string error_msg = "Le fichier modèle semble trop petit ou corrompu";
                     model_load_failed(model_path, error_msg);
                     return false;
                 }
-                
+
                 // Succès de la simulation
                 current_model_path = model_path;
                 is_model_loaded = true;
-                
+
                 string model_name = Path.get_basename(model_path);
                 print("Modèle simulé chargé avec succès : %s\n", model_name);
-                
+
                 model_loaded(model_path, model_name);
                 return true;
-                
+
             } catch (Error e) {
                 string error_msg = @"Erreur lors de la validation du modèle : $(e.message)";
                 model_load_failed(model_path, error_msg);
@@ -152,15 +152,15 @@ namespace Sambo {
         public void unload_current_model() {
             if (is_model_loaded) {
                 print("Déchargement du modèle actuel...\n");
-                
+
                 if (!is_simulation_mode) {
                     // Libération des ressources llama.cpp via wrapper
                     Llama.unload_model();
                 }
-                
+
                 current_model_path = "";
                 is_model_loaded = false;
-                
+
                 model_unloaded();
                 print("Modèle déchargé\n");
             }
@@ -205,7 +205,7 @@ namespace Sambo {
          */
         ~ModelManager() {
             unload_current_model();
-            
+
             if (is_backend_initialized && !is_simulation_mode) {
                 Llama.backend_free();
                 is_backend_initialized = false;

@@ -5,7 +5,7 @@
 
 [CCode (cheader_filename = "sambo_llama_wrapper.h")]
 namespace Llama {
-    
+
     // Fonctions d'initialisation/finalisation du backend
     [CCode (cname = "sambo_llama_backend_init")]
     public static bool backend_init();
@@ -16,13 +16,42 @@ namespace Llama {
     // Gestion des modèles
     [CCode (cname = "sambo_llama_load_model")]
     public static bool load_model(string model_path);
-    
+
     [CCode (cname = "sambo_llama_unload_model")]
     public static void unload_model();
-    
+
     [CCode (cname = "sambo_llama_is_model_loaded")]
     public static bool is_model_loaded();
-    
+
     [CCode (cname = "sambo_llama_cleanup")]
     public static void cleanup();
+
+    // Structure pour les paramètres de sampling
+    [CCode (cname = "SamboSamplingParams")]
+    public struct SamplingParams {
+        public float temperature;
+        public float top_p;
+        public int top_k;
+        public int max_tokens;
+        public float repetition_penalty;
+        public float frequency_penalty;
+        public float presence_penalty;
+        public int seed;
+        public int context_length;
+        public bool stream;
+    }
+
+    // Callback pour le streaming
+    [CCode (cname = "sambo_vala_stream_callback", has_target = false)]
+    public delegate void StreamCallback(string token, void* user_data, void* closure_data);
+
+    // Fonctions d'inférence
+    [CCode (cname = "sambo_llama_generate")]
+    public static bool generate(string prompt, SamplingParams* params, StreamCallback callback, void* user_data);
+
+    [CCode (cname = "sambo_llama_generate_simple")]
+    public static string? generate_simple(string prompt, SamplingParams* params);
+
+    [CCode (cname = "sambo_llama_stop_generation")]
+    public static void stop_generation();
 }

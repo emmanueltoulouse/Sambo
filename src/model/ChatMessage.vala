@@ -32,6 +32,13 @@ namespace Sambo {
         public string get_formatted_time() {
             return timestamp.format("%H:%M");
         }
+
+        /**
+         * Ajoute du texte au contenu existant (pour le streaming)
+         */
+        public void append_text(string text) {
+            content += text;
+        }
     }
 
     /**

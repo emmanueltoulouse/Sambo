@@ -1,25 +1,10 @@
-project('Sambo', 'vala', 'c',
-        version: '0.1.0',
+project('Sambo', 'vala', version: '0.1.0',
         license: 'GPL-3.0-or-later',
         default_options: [
             'warning_level=3',
             'debug=true'
         ])
 
-# Import des modules requis au début
-gnome = import('gnome')
-i18n = import('i18n')
-cmake = import('cmake')
-fs = import('fs')
-
-# Configuration de l'internationalisation
-gettext_package = meson.project_name().to_lower()
-
-# Définir GETTEXT_PACKAGE pour C et Vala AVANT toute cible
-add_global_arguments('-DGETTEXT_PACKAGE="@0@"'.format(gettext_package), language: 'c')
-add_global_arguments('--define=GETTEXT_PACKAGE="@0@"'.format(gettext_package), language: 'vala')
-
-# Dépendances de base
 gtk_dep = dependency('gtk4', version: '>=4.1', required: true)
 adw_dep = dependency('libadwaita-1', version: '>=1.0', required: true)
 gee_dep = dependency('gee-0.8', required: true)
@@ -27,38 +12,16 @@ json_dep = dependency('json-glib-1.0', required: true)
 gio_dep = dependency('gio-2.0', required: true)
 soup_dep = dependency('libsoup-3.0', required: true)
 
-# Détection précoce de llama.cpp et définition des flags globaux
-have_llama_cpp = false
+# Dépendance llama.cpp - d'abord essayer le sous-projet
+llama_dep = dependency('', required: false)  # Initialisation
+
+# Intégration de llama.cpp comme sous-projet CMake
+cmake = import('cmake')
+fs = import('fs')
 
 # Vérifier si le sous-projet llama existe
 if fs.is_dir('subprojects/llama')
   message('Tentative de chargement de llama.cpp depuis subprojects/')
-  have_llama_cpp = true
-else
-  # Essayer de trouver llama.cpp installé dans le système
-  if meson.get_compiler('c').find_library('llama',
-     dirs: ['/usr/local/lib', '/usr/lib'],
-     required: false).found()
-    have_llama_cpp = true
-  elif meson.get_compiler('c').has_header('llama.h',
-       args: ['-I/usr/local/include'])
-    have_llama_cpp = true
-  endif
-endif
-
-# Définir HAVE_LLAMA_CPP maintenant, avant toute autre cible
-if have_llama_cpp
-  add_global_arguments('-DHAVE_LLAMA_CPP=1', language: 'c')
-  message('HAVE_LLAMA_CPP défini - mode llama.cpp réel activé')
-else
-  message('Mode simulation activé - llama.cpp non disponible')
-endif
-
-# Maintenant charger les dépendances llama.cpp
-llama_dep = dependency('', required: false)  # Initialisation
-
-# Vérifier si le sous-projet llama existe et le charger
-if fs.is_dir('subprojects/llama')
   llama_subproject = cmake.subproject('llama')
   llama_dep = llama_subproject.dependency('llama')
   message('llama.cpp chargé avec succès depuis subprojects/')
@@ -66,7 +29,7 @@ endif
 
 # Si le sous-projet a échoué, essayer find_library
 if not llama_dep.found()
-  llama_dep = meson.get_compiler('c').find_library('llama',
+  llama_dep = meson.get_compiler('c').find_library('llama', 
     dirs: ['/usr/local/lib', '/usr/lib'],
     required: false
   )
@@ -76,11 +39,11 @@ endif
 if not llama_dep.found()
   warning('llama.cpp non trouvé via find_library, tentative manuelle...')
   # Déclaration manuelle si installé dans /usr/local
-  if meson.get_compiler('c').has_header('llama.h',
+  if meson.get_compiler('c').has_header('llama.h', 
      args: ['-I/usr/local/include'])
     llama_dep = declare_dependency(
       link_args: ['-L/usr/local/lib', '-lllama'],
-      compile_args: ['-I/usr/local/include']
+      compile_args: ['-I/usr/local/include', '-DHAVE_LLAMA_CPP=1']
     )
     message('llama.cpp trouvé dans /usr/local')
   else
@@ -88,6 +51,25 @@ if not llama_dep.found()
     llama_dep = dependency('', required: false)  # Dépendance vide
   endif
 endif
+
+# Définir HAVE_LLAMA_CPP si llama.cpp est trouvé
+if llama_dep.found()
+  add_global_arguments('-DHAVE_LLAMA_CPP=1', language: 'c')
+  message('HAVE_LLAMA_CPP défini - mode llama.cpp réel activé')
+else
+  message('Mode simulation activé - llama.cpp non disponible')
+endif
+
+# Import des modules GNOME
+gnome = import('gnome')
+
+# Configuration de l'internationalisation
+i18n = import('i18n')
+gettext_package = meson.project_name().to_lower()
+
+# Définir GETTEXT_PACKAGE pour C et Vala
+add_global_arguments('-DGETTEXT_PACKAGE="@0@"'.format(gettext_package), language: 'c')
+add_global_arguments('--define=GETTEXT_PACKAGE="@0@"'.format(gettext_package), language: 'vala')
 
 # Vérifier si l'icône existe dans le répertoire personnel de l'utilisateur
 check_home_icon = run_command('sh', '-c', 'test -f ~/com.cabineteto.Sambo.png && echo yes || echo no', check: false).stdout().strip()
@@ -122,6 +104,8 @@ sources = [
     'src/model/CommunicationModel.vala',
     'src/model/ChatMessage.vala',
     'src/model/ZoneTransferManager.vala',
+
+    # Explorateur - Modèles
     'src/model/ExplorerModel.vala',
     'src/model/explorer/BreadcrumbModel.vala',
     'src/model/explorer/ExplorerTabModel.vala',
@@ -131,18 +115,26 @@ sources = [
     'src/model/explorer/SearchService.vala',
     'src/model/explorer/BookmarksManager.vala',
     'src/model/explorer/HistoryManager.vala',
+
+    # Module pivot et convertisseurs (Phase 1)
     'src/model/document/PivotDocument.vala',
     'src/model/document/DocumentConverter.vala',
     'src/model/document/DocumentConverterManager.vala',
     'src/model/document/PivotDocumentConverter.vala',
     'src/model/document/TextDocumentConverter.vala',
+
+
+
+    # Module pivot et convertisseurs (Phase 2 enrichie)
     'src/model/document/MarkdownDocumentConverter.vala',
     'src/model/document/HtmlDocumentConverter.vala',
+
+    # Modèles HuggingFace
     'src/model/huggingface/HuggingFaceAPI.vala',
     'src/model/huggingface/HuggingFaceModel.vala',
     'src/model/huggingface/HuggingFaceFile.vala',
 
-    # Contrôleurs
+    # Contrôleur
     'src/controller/ApplicationController.vala',
 
     # Vues principales
@@ -151,14 +143,14 @@ sources = [
     'src/view/EditorView.vala',
     'src/view/CommunicationView.vala',
 
-    # Fenêtres
+    # Fenêtres pour l'explorateur
     'src/view/windows/ExplorerWindow.vala',
     'src/view/windows/PreferencesWindow.vala',
     'src/view/windows/TrackingWindow.vala',
     'src/view/windows/HuggingFaceModelsWindow.vala',
     'src/view/windows/HuggingFaceDownloadWindow.vala',
 
-    # Dialogues
+    # Boîtes de dialogue
     'src/view/dialogs/DialogFileComparer.vala',
     'src/view/dialogs/TableEditorDialog.vala',
 
@@ -174,78 +166,59 @@ sources = [
     'src/view/widgets/WysiwygEditor.vala',
     'src/view/widgets/ZoneTransferButton.vala',
 
-    # CommandView et Sidebar
+    # Vues supplémentaires à ajouter
     'src/CommandView.vala',
     'src/Sidebar.vala',
 ]
 
-dependencies = [
-    gtk_dep,
-    adw_dep,
-    gee_dep,
-    json_dep,
-    gio_dep,
-    soup_dep,
-    llama_dep,
-]
+add_project_arguments(['--target-glib=auto'], language: 'vala')
 
-# Configuration des schemas GSettings
-# Créer le répertoire de destination s'il n'existe pas
-schema_output_dir = join_paths(get_option('datadir'), 'glib-2.0', 'schemas')
-install_data('data/com.cabineteto.Sambo.gschema.xml',
-             install_dir: schema_output_dir)
+# Assurez-vous que le compilateur valac puisse trouver les packages
+add_project_arguments(['--pkg=gtk4', '--pkg=libadwaita-1', '--pkg=gee-0.8', '--pkg=gio-2.0', '--pkg=libsoup-3.0', '--pkg=llama'], language: 'vala')
 
-# Application exécutable principal
+# Ajouter le répertoire vapi pour les bindings llama.cpp
+add_project_arguments(['--vapidir=' + meson.current_source_dir() + '/vapi'], language: 'vala')
+
+# Dans votre fichier meson.build principal
+add_project_arguments(['--disable-warnings'], language: 'vala')
+
+# Dépendance pour la bibliothèque mathématique
+math_dep = meson.get_compiler('c').find_library('m', required: false)
+
 executable('Sambo',
-    sources, resources,
-    dependencies: dependencies,
-    vala_args: [
-        '--pkg=libsoup-3.0',
-        '--pkg=gio-2.0',
-        '--pkg=json-glib-1.0',
-        '--pkg=gee-0.8',
-        '--pkg=libadwaita-1',
-        '--pkg=gtk4',
-        '--vapidir=' + meson.current_source_dir() + '/vapi',
-        '--pkg=llama',
-        '--color=always'
-    ],
-    c_args: ['-lm'],
-    include_directories: include_directories('src'),
-    install: true
+  sources: sources + resources,
+  dependencies: [gtk_dep, adw_dep, gee_dep, json_dep, gio_dep, soup_dep, math_dep, llama_dep],
+  install: true,
+  include_directories: include_directories('src'),
+  vala_args: ['--Xcc=-lm', '--pkg=llama'] # Inclure le package llama
 )
 
-# Fichier de bureau (.desktop) - temporairement commenté
-# configure_file(
-#     input: 'data/com.cabineteto.Sambo.desktop.in',
-#     output: 'com.cabineteto.Sambo.desktop',
-#     configuration: {
-#         'BINDIR': get_option('bindir'),
-#     },
-#     install: true,
-#     install_dir: join_paths(get_option('datadir'), 'applications')
-# )
+# Installation de l'icône
+install_data('data/icons/hicolor/scalable/apps/com.cabineteto.Sambo.png',
+  install_dir: join_paths(get_option('datadir'), 'icons/hicolor/scalable/apps')
+)
 
-# Icônes (temporairement commenté pour éviter les erreurs de fichiers manquants)
-# install_data(join_paths('data', 'icons', 'hicolor', 'scalable', 'apps', 'com.cabineteto.Sambo.svg'),
-#              install_dir: join_paths(get_option('datadir'), 'icons', 'hicolor', 'scalable', 'apps'))
+# Création et installation du fichier .desktop
+conf = configuration_data()
+conf.set('ICON', 'com.cabineteto.Sambo')
+conf.set('EXEC', 'Sambo')
+conf.set('NAME', 'Sambo')
 
-# Scripts utiles
-install_data('scripts/install_icon_and_desktop.sh',
-             install_dir: join_paths(get_option('datadir'), 'sambo', 'scripts'),
-             install_mode: 'rwxr-xr-x')
+configure_file(
+  input: 'data/com.cabineteto.Sambo.desktop.in',
+  output: 'com.cabineteto.Sambo.desktop',
+  configuration: conf,
+  install: true,
+  install_dir: join_paths(get_option('datadir'), 'applications')
+)
 
-# Tests et validation
-run_target('post-install',
-           command: ['scripts/install_icon_and_desktop.sh'])
+# Installation du schéma GSettings
+install_data('data/com.cabineteto.Sambo.gschema.xml',
+  install_dir: join_paths(get_option('datadir'), 'glib-2.0/schemas')
+)
 
-# Cible personnalisée pour traiter les icons
-run_target('update-icon-cache',
-           command: [find_program('gtk4-update-icon-cache'), '-f', '-t',
-                     join_paths(get_option('prefix'), get_option('datadir'), 'icons', 'hicolor')])
+# Compilation du schéma GSettings (pour les tests locaux)
+gnome.compile_schemas(depend_files: 'data/com.cabineteto.Sambo.gschema.xml')
 
-# Internationalisation (optionnel)
-# subdir('po')
-
-# Documentation (optionnel)
-# subdir('docs')
+# Configuration pour l'internationalisation
+subdir('po')

@@ -140,7 +140,7 @@ namespace Sambo {
             public string error_message { get; set; default = ""; }
             public string error_details { get; set; default = ""; }
             public Gee.List<ModelNode> children { get; set; }
-            
+
             public ModelNode(string name, string full_path, bool is_file = false, string size_str = "") {
                 this.name = name;
                 this.full_path = full_path;
@@ -148,7 +148,7 @@ namespace Sambo {
                 this.size_str = size_str;
                 this.children = new Gee.ArrayList<ModelNode>();
             }
-            
+
             public bool has_error() {
                 return error_message != "";
             }
@@ -161,33 +161,33 @@ namespace Sambo {
         public ModelNode get_models_tree() {
             string models_dir = get_string("AI", "models_directory", "");
             var root = new ModelNode("Models", models_dir);
-            
+
             // Définir l'état d'erreur dans le nœud racine
             root.error_message = "";
-            
+
             print("Répertoire des modèles configuré : %s\n", models_dir);
-            
+
             // Vérifier si un répertoire est configuré
             if (models_dir == "") {
                 root.error_message = "AUCUN_REPERTOIRE_CONFIGURE";
                 root.error_details = "Aucun répertoire de modèles n'est configuré dans les paramètres.";
                 return root;
             }
-            
+
             // Vérifier si le répertoire existe
             if (!FileUtils.test(models_dir, FileTest.EXISTS)) {
                 root.error_message = "REPERTOIRE_INEXISTANT";
                 root.error_details = @"Le répertoire configuré n'existe pas :\n$(models_dir)";
                 return root;
             }
-            
+
             // Vérifier si c'est bien un dossier
             if (!FileUtils.test(models_dir, FileTest.IS_DIR)) {
                 root.error_message = "PAS_UN_DOSSIER";
                 root.error_details = @"Le chemin configuré n'est pas un dossier :\n$(models_dir)";
                 return root;
             }
-            
+
             // Scanner l'arborescence
             try {
                 build_models_tree(models_dir, root, models_dir);
@@ -197,14 +197,14 @@ namespace Sambo {
                 root.error_details = @"Erreur lors du scan du répertoire :\n$(e.message)";
                 return root;
             }
-            
+
             // Vérifier si des modèles ont été trouvés
             if (root.children.size == 0) {
                 root.error_message = "AUCUN_MODELE_TROUVE";
                 root.error_details = @"Aucun modèle trouvé dans le répertoire :\n$(models_dir)\n\nFormats supportés : .gguf, .bin, .safetensors";
                 return root;
             }
-            
+
             print("Arborescence des modèles construite avec %d éléments\n", root.children.size);
             return root;
         }
@@ -215,21 +215,21 @@ namespace Sambo {
         private void build_models_tree(string dir_path, ModelNode parent_node, string base_path) throws Error {
             var dir = Dir.open(dir_path);
             string? name;
-            
+
             while ((name = dir.read_name()) != null) {
                 string full_path = Path.build_filename(dir_path, name);
-                
+
                 if (FileUtils.test(full_path, FileTest.IS_DIR)) {
                     // Créer un nœud dossier
                     var folder_node = new ModelNode(name, full_path, false);
                     parent_node.children.add(folder_node);
-                    
+
                     // Scanner récursivement le dossier
                     build_models_tree(full_path, folder_node, base_path);
-                } else if (name.has_suffix(".gguf") || 
-                          name.has_suffix(".bin") || 
+                } else if (name.has_suffix(".gguf") ||
+                          name.has_suffix(".bin") ||
                           name.has_suffix(".safetensors")) {
-                    
+
                     // Obtenir la taille du fichier
                     string size_str = "";
                     try {
@@ -240,7 +240,7 @@ namespace Sambo {
                     } catch (Error e) {
                         size_str = "?";
                     }
-                    
+
                     // Nettoyer le nom du fichier
                     string clean_name = name;
                     if (name.has_suffix(".gguf")) {
@@ -250,11 +250,11 @@ namespace Sambo {
                     } else if (name.has_suffix(".safetensors")) {
                         clean_name = name.substring(0, name.length - 12);
                     }
-                    
+
                     // Créer un nœud fichier
                     var file_node = new ModelNode(clean_name, full_path, true, size_str);
                     parent_node.children.add(file_node);
-                    
+
                     print("Modèle trouvé : %s (taille: %s, chemin: %s)\n", clean_name, size_str, full_path);
                 }
             }
@@ -267,12 +267,12 @@ namespace Sambo {
         public string[] get_available_models() {
             var models = new Gee.ArrayList<string>();
             var tree = get_models_tree();
-            
+
             flatten_tree_to_list(tree, "", models);
-            
+
             return models.to_array();
         }
-        
+
         /**
          * Aplatit l'arborescence en liste pour compatibilité
          */
@@ -293,7 +293,7 @@ namespace Sambo {
                 }
             }
         }
-        
+
         /**
          * Formate la taille d'un fichier en unités lisibles
          */
@@ -319,6 +319,6 @@ namespace Sambo {
                 return @"$(gb_rounded).$(((int)(size_gb * 10)) % 10) GB";
             }
         }
-        
+
     }
 }

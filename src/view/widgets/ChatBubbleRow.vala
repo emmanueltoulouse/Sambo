@@ -153,5 +153,14 @@ namespace Sambo {
                 warning("Erreur lors du transfert vers l'éditeur : %s", e.message);
             }
         }
+
+        /**
+         * Met à jour le contenu affiché (pour le streaming)
+         */
+        public void update_content() {
+            if (content_label != null && message != null) {
+                content_label.set_text(message.content);
+            }
+        }
     }
 }
