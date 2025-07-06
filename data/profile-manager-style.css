@@ -1,0 +1,178 @@
+/* Styles pour le gestionnaire de profils moderne */
+
+/* Profil actuellement sélectionné */
+.current-profile {
+    background: alpha(@accent_color, 0.1);
+    border-left: 3px solid @accent_color;
+}
+
+/* Badge pour le modèle */
+.model-badge {
+    background: alpha(@accent_color, 0.2);
+    color: @accent_color;
+    border-radius: 12px;
+    padding: 2px 8px;
+    font-size: 0.8em;
+    font-weight: bold;
+}
+
+/* Bannière du profil actuel */
+.current-profile-banner {
+    background: linear-gradient(90deg, alpha(@success_color, 0.1), alpha(@accent_color, 0.1));
+    border: 1px solid alpha(@accent_color, 0.3);
+}
+
+/* Indicateurs de température */
+.temperature-indicator {
+    border-radius: 50%;
+    width: 12px;
+    height: 12px;
+    margin-right: 6px;
+}
+
+/* État vide élégant */
+.empty-state {
+    padding: 48px 24px;
+}
+
+/* Groupes de préférences avec espacement */
+.preferences-group {
+    margin-bottom: 24px;
+}
+
+/* Boutons d'action dans les lignes */
+.action-buttons {
+    spacing: 6px;
+}
+
+/* Animation pour les changements */
+.profile-transition {
+    transition: all 200ms ease-in-out;
+}
+
+/* Mise en évidence des erreurs de validation */
+.error {
+    border-color: @error_color;
+    color: @error_color;
+}
+
+/* Style pour les exemples de prompt */
+.prompt-example {
+    background: alpha(@accent_color, 0.1);
+    border-left: 3px solid @accent_color;
+    padding: 12px;
+    border-radius: 6px;
+    margin: 6px 0;
+    font-family: monospace;
+}
+
+/* Cartes de profils avec hover */
+.profile-card {
+    transition: all 200ms ease-in-out;
+    border-radius: 12px;
+    padding: 12px;
+    margin: 4px 0;
+}
+
+.profile-card:hover {
+    background: alpha(@accent_color, 0.05);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px alpha(@accent_color, 0.2);
+}
+
+/* Boutons modernes */
+.pill {
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-weight: 600;
+}
+
+/* Icônes avec couleurs sémantiques */
+.success { color: @success_color; }
+.warning { color: @warning_color; }
+.error { color: @error_color; }
+.accent { color: @accent_color; }
+
+/* Layout responsive */
+@media (max-width: 600px) {
+    .profile-manager {
+        min-width: 100%;
+    }
+    
+    .profile-details {
+        margin: 0;
+        padding: 12px;
+    }
+}
+
+/* Animation d'apparition */
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-in {
+    animation: slideInUp 300ms ease-out;
+}
+
+/* Styles pour les paramètres avec indicateurs visuels */
+.parameter-row {
+    transition: background-color 200ms ease;
+}
+
+.parameter-row:hover {
+    background: alpha(@accent_color, 0.05);
+}
+
+/* Toast personnalisé */
+.custom-toast {
+    background: @accent_color;
+    color: white;
+    border-radius: 25px;
+    font-weight: 600;
+}
+
+/* Leaflet avec transitions fluides */
+.profile-leaflet {
+    transition: all 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Section de prompt avec style code */
+.prompt-section {
+    background: alpha(@window_bg_color, 0.5);
+    border: 1px solid alpha(@borders, 0.5);
+    border-radius: 8px;
+}
+
+/* Barres de progression pour les paramètres */
+.parameter-progress {
+    height: 4px;
+    border-radius: 2px;
+    background: @accent_color;
+    transition: width 200ms ease;
+}
+
+/* Badges de statut */
+.status-badge {
+    font-size: 0.75em;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 10px;
+    text-transform: uppercase;
+}
+
+.status-badge.active {
+    background: @success_color;
+    color: white;
+}
+
+.status-badge.inactive {
+    background: alpha(@borders, 0.5);
+    color: @dim_label;
+}

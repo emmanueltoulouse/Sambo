@@ -117,6 +117,7 @@ sources = [
     # Modèles
     'src/model/ApplicationModel.vala',
     'src/model/ConfigManager.vala',
+    'src/model/InferenceProfile.vala',
     'src/model/ModelManager.vala',
     'src/model/EditorModel.vala',
     'src/model/CommunicationModel.vala',
@@ -165,6 +166,9 @@ sources = [
     # Widgets
     'src/view/widgets/ChatBubbleRow.vala',
     'src/view/widgets/ChatView.vala',
+    'src/view/widgets/ProfileManager.vala',
+    'src/view/widgets/ProfileEditorDialog.vala',
+    'src/view/widgets/ProfileCreationWizard.vala',
     'src/view/widgets/TerminalView.vala',
     'src/view/widgets/ComparisonView.vala',
     'src/view/widgets/FilePreviewWidget.vala',

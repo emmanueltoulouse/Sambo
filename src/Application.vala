@@ -118,16 +118,36 @@ namespace Sambo {
                     /* Autres styles existants... */
                 """);
 
-                // Appliquer le CSS
                 Gtk.StyleContext.add_provider_for_display(
                     Gdk.Display.get_default(),
                     css_provider,
                     Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
                 );
 
-                print("Styles CSS chargés\n");
+                // Charger le CSS moderne pour les profils
+                load_profile_css();
+
+                print("✅ CSS chargé avec succès\n");
             } catch (Error e) {
-                warning("Erreur lors du chargement du CSS: %s", e.message);
+                stderr.printf("❌ Erreur lors du chargement du CSS : %s\n", e.message);
+            }
+        }
+
+        private void load_profile_css() {
+            try {
+                var css_provider = new Gtk.CssProvider();
+                css_provider.load_from_resource("/com/cabineteto/Sambo/profile-manager-modern.css");
+
+                Gtk.StyleContext.add_provider_for_display(
+                    Gdk.Display.get_default(),
+                    css_provider,
+                    Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 1
+                );
+
+                print("✨ CSS moderne des profils chargé avec succès\n");
+            } catch (Error e) {
+                stderr.printf("⚠️ Erreur lors du chargement du CSS des profils : %s\n", e.message);
+                // Continuer sans le CSS moderne si le chargement échoue
             }
         }
 

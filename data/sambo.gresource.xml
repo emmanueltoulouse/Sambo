@@ -4,5 +4,7 @@
     <file>icons/hicolor/scalable/apps/com.cabineteto.Sambo.png</file>
     <file>style.css</file>
     <file>explorer-style.css</file>
+    <file>profile-manager-style.css</file>
+    <file>profile-manager-modern.css</file>
   </gresource>
 </gresources>
