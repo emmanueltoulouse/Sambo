@@ -20,6 +20,7 @@ namespace Sambo {
         private Gtk.SearchEntry search_entry;
         private Button add_profile_button;
         private Adw.ActionRow selected_profile_row;
+        private Gtk.Stack content_stack;
         
         // Page de détails
         private Adw.PreferencesPage details_page;
@@ -146,7 +147,7 @@ namespace Sambo {
             main_page.append(search_bar);
 
             // Conteneur pour la liste avec état vide
-            var content_stack = new Gtk.Stack();
+            content_stack = new Gtk.Stack();
             content_stack.set_vhomogeneous(false);
             content_stack.set_transition_type(Gtk.StackTransitionType.SLIDE_LEFT_RIGHT);
             content_stack.set_transition_duration(300);
@@ -298,7 +299,6 @@ namespace Sambo {
             var selected_profile = config_manager.get_selected_profile();
 
             // Gérer l'état vide
-            var content_stack = (Gtk.Stack) profiles_list.get_parent().get_parent();
             if (profiles.size == 0) {
                 content_stack.set_visible_child_name("empty");
                 add_profile_button.set_visible(false);
