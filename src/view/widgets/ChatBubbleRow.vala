@@ -12,6 +12,13 @@ namespace Sambo {
         private Button? send_to_editor_button = null; // Ajout d'un bouton pour transférer vers l'éditeur
 
         /**
+         * Propriété publique pour accéder au message
+         */
+        public ChatMessage get_message() {
+            return message;
+        }
+
+        /**
          * Crée une nouvelle bulle de message
          */
         public ChatBubbleRow(ChatMessage message) {

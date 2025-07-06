@@ -18,6 +18,7 @@ namespace Sambo {
         private Adw.ToastOverlay toast_overlay;
         private string current_model = "";
         private bool is_processing = false;
+        private string system_prompt = "";
 
         // Paramètres de sampling actuels
         private Llama.SamplingParams current_sampling_params;
@@ -32,6 +33,9 @@ namespace Sambo {
         public ChatView(ApplicationController controller) {
             Object(orientation: Orientation.VERTICAL, spacing: 6);
             this.controller = controller;
+
+            // Charger le prompt système depuis la configuration
+            load_system_prompt();
 
             // Initialiser les paramètres de sampling par défaut
             init_default_sampling_params();
@@ -840,6 +844,14 @@ namespace Sambo {
             });
             header_bar.pack_start(reset_button);
 
+            // Bouton pour afficher le prompt
+            var show_prompt_button = new Button.with_label("Voir le prompt");
+            show_prompt_button.add_css_class("flat");
+            show_prompt_button.clicked.connect(() => {
+                show_current_prompt_dialog();
+            });
+            header_bar.pack_start(show_prompt_button);
+
             main_box.append(header_bar);
 
             // Créer le contenu principal
@@ -985,6 +997,25 @@ namespace Sambo {
         }
 
         /**
+         * Charge le prompt système depuis la configuration
+         */
+        private void load_system_prompt() {
+            var config = controller.get_config_manager();
+            system_prompt = config.get_system_prompt();
+            print("Prompt système chargé : %s\n", system_prompt);
+        }
+
+        /**
+         * Sauvegarde le prompt système dans la configuration
+         */
+        private void save_system_prompt() {
+            var config = controller.get_config_manager();
+            config.set_system_prompt(system_prompt);
+            config.save();
+            print("Prompt système sauvegardé : %s\n", system_prompt);
+        }
+
+        /**
          * Initialise les paramètres de sampling par défaut
          */
         private void init_default_sampling_params() {
@@ -1030,7 +1061,7 @@ namespace Sambo {
         }
 
         /**
-         * Callback pour le streaming de tokens depuis llama.cpp
+         * Callback for the streaming of tokens from llama.cpp
          */
         private static void on_token_received(string token, void* user_data) {
             // En Vala, on ne peut pas directement utiliser void* vers une instance
@@ -1149,6 +1180,298 @@ namespace Sambo {
             var toast = new Adw.Toast(@"$title : $message");
             toast.set_timeout(5);
             toast_overlay.add_toast(toast);
+        }
+
+        /**
+         * Affiche le prompt actuel dans une fenêtre dédiée
+         */
+        private void show_current_prompt_dialog() {
+            // Construire le prompt actuel
+            string current_prompt = build_current_prompt();
+            
+            // Obtenir la fenêtre parent
+            var parent_window = this.get_root() as Gtk.Window;
+
+            // Créer la fenêtre de dialogue
+            var dialog = new Adw.Window();
+            dialog.set_title("Prompt actuel");
+            dialog.set_default_size(700, 600);
+            dialog.set_modal(true);
+            dialog.set_transient_for(parent_window);
+
+            // Créer la boîte principale
+            var main_box = new Box(Orientation.VERTICAL, 0);
+
+            // Créer la barre d'en-tête
+            var header_bar = new Adw.HeaderBar();
+            header_bar.set_title_widget(new Gtk.Label("Prompt actuel"));
+
+            // Bouton de fermeture
+            var close_button = new Button.with_label("Fermer");
+            close_button.add_css_class("suggested-action");
+            close_button.clicked.connect(() => {
+                dialog.close();
+            });
+            header_bar.pack_end(close_button);
+
+            // Bouton de copie
+            var copy_button = new Button.with_label("Copier");
+            copy_button.add_css_class("flat");
+            copy_button.clicked.connect(() => {
+                // Copier le prompt dans le presse-papiers
+                var clipboard = Gdk.Display.get_default().get_clipboard();
+                clipboard.set_text(current_prompt);
+                
+                var toast = new Adw.Toast("Prompt copié dans le presse-papiers");
+                toast.set_timeout(2);
+                toast_overlay.add_toast(toast);
+            });
+            header_bar.pack_start(copy_button);
+
+            // Bouton d'édition du prompt système
+            var edit_button = new Button.with_label("Éditer le prompt système");
+            edit_button.add_css_class("flat");
+            edit_button.clicked.connect(() => {
+                show_system_prompt_editor_dialog();
+            });
+            header_bar.pack_start(edit_button);
+
+            main_box.append(header_bar);
+
+            // Créer le contenu principal avec une zone de texte
+            var content_box = new Box(Orientation.VERTICAL, 12);
+            content_box.set_margin_start(24);
+            content_box.set_margin_end(24);
+            content_box.set_margin_top(24);
+            content_box.set_margin_bottom(24);
+
+            // Ajouter un label d'information
+            var info_label = new Label("Voici le prompt complet qui sera envoyé au modèle d'IA :");
+            info_label.set_halign(Align.START);
+            info_label.add_css_class("dim-label");
+            content_box.append(info_label);
+
+            // Créer une zone de texte pour afficher le prompt
+            var text_view = new TextView();
+            text_view.set_editable(false);
+            text_view.set_cursor_visible(false);
+            text_view.set_wrap_mode(WrapMode.WORD_CHAR);
+            text_view.add_css_class("card");
+            
+            // Configurer le buffer de texte
+            var buffer = text_view.get_buffer();
+            buffer.set_text(current_prompt, -1);
+
+            // Créer une zone de défilement pour le texte
+            var scroll_view = new ScrolledWindow();
+            scroll_view.set_policy(PolicyType.AUTOMATIC, PolicyType.AUTOMATIC);
+            scroll_view.set_child(text_view);
+            scroll_view.set_vexpand(true);
+            scroll_view.set_min_content_height(200);
+
+            content_box.append(scroll_view);
+
+            // Ajouter des statistiques du prompt
+            var stats_box = new Box(Orientation.HORIZONTAL, 12);
+            stats_box.set_halign(Align.START);
+            
+            var char_count_label = new Label(@"Caractères : $(current_prompt.length)");
+            char_count_label.add_css_class("dim-label");
+            stats_box.append(char_count_label);
+
+            // Estimation approximative du nombre de tokens (1 token ≈ 4 caractères)
+            var estimated_tokens = current_prompt.length / 4;
+            var token_count_label = new Label(@"Tokens estimés : $(estimated_tokens)");
+            token_count_label.add_css_class("dim-label");
+            stats_box.append(token_count_label);
+
+            content_box.append(stats_box);
+
+            main_box.append(content_box);
+
+            dialog.set_content(main_box);
+            dialog.present();
+        }
+
+        /**
+         * Affiche l'éditeur de prompt système
+         */
+        private void show_system_prompt_editor_dialog() {
+            // Obtenir la fenêtre parent
+            var parent_window = this.get_root() as Gtk.Window;
+
+            // Créer la fenêtre de dialogue
+            var dialog = new Adw.Window();
+            dialog.set_title("Éditer le prompt système");
+            dialog.set_default_size(600, 400);
+            dialog.set_modal(true);
+            dialog.set_transient_for(parent_window);
+
+            // Créer la boîte principale
+            var main_box = new Box(Orientation.VERTICAL, 0);
+
+            // Créer la barre d'en-tête
+            var header_bar = new Adw.HeaderBar();
+            header_bar.set_title_widget(new Gtk.Label("Éditer le prompt système"));
+
+            // Bouton d'annulation
+            var cancel_button = new Button.with_label("Annuler");
+            cancel_button.clicked.connect(() => {
+                dialog.close();
+            });
+            header_bar.pack_start(cancel_button);
+
+            // Bouton de sauvegarde
+            var save_button = new Button.with_label("Sauvegarder");
+            save_button.add_css_class("suggested-action");
+            header_bar.pack_end(save_button);
+
+            // Bouton de réinitialisation
+            var reset_button = new Button.with_label("Réinitialiser");
+            reset_button.add_css_class("destructive-action");
+            header_bar.pack_end(reset_button);
+
+            main_box.append(header_bar);
+
+            // Créer le contenu principal
+            var content_box = new Box(Orientation.VERTICAL, 12);
+            content_box.set_margin_start(24);
+            content_box.set_margin_end(24);
+            content_box.set_margin_top(24);
+            content_box.set_margin_bottom(24);
+
+            // Ajouter un label d'explication
+            var info_label = new Label("Définissez le prompt système qui sera utilisé pour toutes les conversations :");
+            info_label.set_halign(Align.START);
+            info_label.set_wrap(true);
+            info_label.add_css_class("dim-label");
+            content_box.append(info_label);
+
+            // Créer une zone de texte pour éditer le prompt
+            var text_view = new TextView();
+            text_view.set_wrap_mode(WrapMode.WORD_CHAR);
+            text_view.add_css_class("card");
+            text_view.set_hexpand(true);
+            text_view.set_vexpand(true);
+            
+            // Configurer le buffer de texte avec le prompt actuel
+            var buffer = text_view.get_buffer();
+            buffer.set_text(system_prompt, -1);
+
+            // Créer une zone de défilement pour le texte
+            var scroll_view = new ScrolledWindow();
+            scroll_view.set_policy(PolicyType.AUTOMATIC, PolicyType.AUTOMATIC);
+            scroll_view.set_child(text_view);
+            scroll_view.set_vexpand(true);
+            scroll_view.set_min_content_height(200);
+
+            content_box.append(scroll_view);
+
+            // Ajouter des exemples de prompts
+            var examples_label = new Label("Exemples de prompts système :");
+            examples_label.set_halign(Align.START);
+            examples_label.set_margin_top(12);
+            examples_label.add_css_class("heading");
+            content_box.append(examples_label);
+
+            var examples_box = new Box(Orientation.VERTICAL, 6);
+            
+            // Exemple 1 : Assistant général
+            var example1_button = new Button.with_label("Assistant général");
+            example1_button.add_css_class("flat");
+            example1_button.clicked.connect(() => {
+                buffer.set_text("Tu es un assistant IA utile et bienveillant. Réponds de manière claire et concise.", -1);
+            });
+            examples_box.append(example1_button);
+
+            // Exemple 2 : Assistant technique
+            var example2_button = new Button.with_label("Assistant technique");
+            example2_button.add_css_class("flat");
+            example2_button.clicked.connect(() => {
+                buffer.set_text("Tu es un assistant IA spécialisé en programmation et technologies. Fournis des réponses détaillées et techniques avec des exemples de code quand c'est approprié.", -1);
+            });
+            examples_box.append(example2_button);
+
+            // Exemple 3 : Assistant créatif
+            var example3_button = new Button.with_label("Assistant créatif");
+            example3_button.add_css_class("flat");
+            example3_button.clicked.connect(() => {
+                buffer.set_text("Tu es un assistant IA créatif et inspirant. Aide à générer des idées originales et propose des solutions innovantes. Utilise un langage vivant et engageant.", -1);
+            });
+            examples_box.append(example3_button);
+
+            content_box.append(examples_box);
+
+            // Connexion des boutons
+            save_button.clicked.connect(() => {
+                // Récupérer le texte du buffer
+                TextIter start, end;
+                buffer.get_start_iter(out start);
+                buffer.get_end_iter(out end);
+                string new_prompt = buffer.get_text(start, end, false);
+                
+                // Sauvegarder le nouveau prompt
+                system_prompt = new_prompt;
+                save_system_prompt();
+                
+                // Afficher une notification
+                var toast = new Adw.Toast("Prompt système sauvegardé");
+                toast.set_timeout(2);
+                toast_overlay.add_toast(toast);
+                
+                dialog.close();
+            });
+
+            reset_button.clicked.connect(() => {
+                // Réinitialiser au prompt par défaut
+                buffer.set_text("Tu es un assistant IA utile et bienveillant. Réponds de manière claire et concise.", -1);
+            });
+
+            main_box.append(content_box);
+
+            dialog.set_content(main_box);
+            dialog.present();
+        }
+
+        /**
+         * Construit le prompt actuel à partir de la conversation
+         */
+        private string build_current_prompt() {
+            var prompt_builder = new StringBuilder();
+            
+            // Ajouter le prompt système s'il existe
+            if (system_prompt != null && system_prompt.length > 0) {
+                prompt_builder.append("### Instructions système :\n");
+                prompt_builder.append(system_prompt);
+                prompt_builder.append("\n\n");
+            }
+
+            // Parcourir tous les messages dans le conteneur
+            var child = message_container.get_first_child();
+            while (child != null) {
+                if (child is ChatBubbleRow) {
+                    var bubble_row = child as ChatBubbleRow;
+                    var message = bubble_row.get_message();
+                    
+                    if (message != null) {
+                        if (message.sender == ChatMessage.SenderType.USER) {
+                            prompt_builder.append("### Utilisateur :\n");
+                            prompt_builder.append(message.content);
+                            prompt_builder.append("\n\n");
+                        } else if (message.sender == ChatMessage.SenderType.AI) {
+                            prompt_builder.append("### Assistant :\n");
+                            prompt_builder.append(message.content);
+                            prompt_builder.append("\n\n");
+                        }
+                    }
+                }
+                child = child.get_next_sibling();
+            }
+
+            // Ajouter le prompt pour la prochaine réponse
+            prompt_builder.append("### Assistant :\n");
+
+            return prompt_builder.str;
         }
     }
 }

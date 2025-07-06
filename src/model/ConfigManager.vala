@@ -104,6 +104,22 @@ namespace Sambo {
         }
 
         /**
+         * Obtient le prompt système depuis la configuration
+         * @return Le prompt système ou une valeur par défaut
+         */
+        public string get_system_prompt() {
+            return get_string("AI", "system_prompt", "Tu es un assistant IA utile et bienveillant. Réponds de manière claire et concise.");
+        }
+
+        /**
+         * Définit le prompt système dans la configuration
+         * @param prompt Le nouveau prompt système
+         */
+        public void set_system_prompt(string prompt) {
+            set_string("AI", "system_prompt", prompt);
+        }
+
+        /**
          * Obtient une valeur double de la configuration
          * @param section La section
          * @param key La clé
