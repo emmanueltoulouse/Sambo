@@ -59,9 +59,15 @@ var selected = config_manager.get_selected_profile();
 
 ### Gestionnaire de profils (`ProfileManager`)
 - Fenêtre dédiée à la gestion des profils
-- Liste des profils existants
-- Boutons pour créer, éditer, supprimer
-- Sélection du profil actif
+- Liste des profils existants avec affichage simple (nom et commentaire)
+- Navigation par double-clic vers les détails du profil
+- Actions disponibles dans la vue détail :
+  - Sélection du profil (si ce n'est pas le profil actuel)
+  - Édition du profil
+  - Suppression du profil
+  - Duplication du profil
+  - Exportation du profil
+- Interface moderne et responsive avec design GNOME sobre
 
 ### Éditeur de profils (`ProfileEditorDialog`)
 - Dialogue pour créer/éditer un profil
@@ -112,11 +118,25 @@ Le système émet des signaux pour notifier des changements :
 ## Intégration avec l'IA
 
 Lors de l'envoi d'un message :
-1. Vérification qu'un profil est sélectionné
-2. Validation du profil
-3. Création des paramètres de sampling depuis le profil
-4. Préparation du contexte avec le prompt système
-5. Appel à l'IA avec les paramètres du profil
+1. **Vérification du profil** : S'assurer qu'un profil est sélectionné et valide
+2. **Chargement du modèle** : Charger automatiquement le modèle spécifié dans le profil si nécessaire
+3. **Validation du profil** : Vérifier que tous les paramètres sont dans les plages valides
+4. **Création des paramètres** : Générer les paramètres de sampling depuis le profil
+5. **Préparation du contexte** : Construire le prompt complet avec le prompt système
+6. **Génération IA** : Appel au moteur llama.cpp avec les paramètres du profil
+7. **Streaming** : Affichage progressif de la réponse si activé
+
+### Gestion automatique des modèles
+- Si le modèle du profil n'est pas chargé, l'application tente de le charger automatiquement
+- Validation de l'existence du fichier modèle avant le chargement
+- Messages d'erreur clairs en cas de problème (modèle introuvable, échec du chargement)
+- Fallback en mode simulation si llama.cpp n'est pas disponible
+
+### Streaming et feedback
+- Mise à jour progressive du contenu pendant la génération
+- Indicateur de statut dans l'interface utilisateur
+- Gestion des erreurs avec messages informatifs
+- Possibilité d'interrompre la génération
 
 ## Exemple d'utilisation
 
@@ -140,7 +160,7 @@ config_manager.select_profile(tech_profile.id);
 
 ## Migration depuis l'ancien système
 
-L'ancien système avec gestion séparée du prompt système, des paramètres de sampling et de la sélection de modèle a été remplacé par ce système unifié de profils. 
+L'ancien système avec gestion séparée du prompt système, des paramètres de sampling et de la sélection de modèle a été remplacé par ce système unifié de profils.
 
 Les avantages :
 - Configuration centralisée
@@ -151,8 +171,13 @@ Les avantages :
 
 ## Fichiers concernés
 
-- `src/model/InferenceProfile.vala` : Modèle de données
-- `src/model/ConfigManager.vala` : Gestion de la persistance
-- `src/view/widgets/ProfileManager.vala` : Interface de gestion
+- `src/model/InferenceProfile.vala` : Modèle de données des profils
+- `src/model/ConfigManager.vala` : Gestion de la persistance des profils
+- `src/model/ModelManager.vala` : Gestionnaire de modèles IA et génération
+- `src/model/ApplicationModel.vala` : Modèle principal avec intégration ModelManager
+- `src/controller/ApplicationController.vala` : Contrôleur avec méthodes de génération IA
+- `src/view/widgets/ProfileManager.vala` : Interface de gestion des profils
 - `src/view/widgets/ProfileEditorDialog.vala` : Éditeur de profils
-- `src/view/widgets/ChatView.vala` : Intégration dans le chat
+- `src/view/widgets/ChatView.vala` : Intégration chat avec génération IA réelle
+- `src/sambo_llama_wrapper.h/.c` : Interface C pour llama.cpp
+- `vapi/llama.vapi` : Bindings Vala pour llama.cpp

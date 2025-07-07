@@ -58,13 +58,13 @@ namespace Sambo {
             try {
                 key_file.load_from_file(config_path, KeyFileFlags.KEEP_COMMENTS);
                 print("Configuration chargée depuis %s\n", config_path);
-                
+
                 // Charger les profils après avoir chargé la configuration
                 load_profiles();
-                
+
                 // S'assurer qu'un profil par défaut existe
                 ensure_default_profile();
-                
+
             } catch (Error e) {
                 warning("Erreur lors du chargement de la configuration: %s", e.message);
                 config_error.emit(e.message);
@@ -359,11 +359,11 @@ namespace Sambo {
          */
         public void load_profiles() {
             profiles_cache.clear();
-            
+
             try {
                 // Récupérer tous les groupes de profils
                 string[] groups = key_file.get_groups();
-                
+
                 foreach (string group in groups) {
                     if (group.has_prefix("Profile_")) {
                         string profile_id = group.substring(8); // Supprimer "Profile_"
@@ -373,13 +373,13 @@ namespace Sambo {
                         }
                     }
                 }
-                
+
                 // Charger le profil sélectionné
                 selected_profile_id = get_string("Profiles", "selected_profile", "");
-                
+
                 profiles_loaded = true;
                 print("Profils chargés: %d profils trouvés\n", profiles_cache.size);
-                
+
             } catch (Error e) {
                 warning("Erreur lors du chargement des profils: %s", e.message);
                 config_error.emit("Erreur lors du chargement des profils: " + e.message);
@@ -391,7 +391,7 @@ namespace Sambo {
          */
         private InferenceProfile? load_profile_from_config(string profile_id) {
             string group = "Profile_" + profile_id;
-            
+
             try {
                 var profile = new InferenceProfile();
                 profile.id = profile_id;
@@ -399,7 +399,7 @@ namespace Sambo {
                 profile.comment = get_string(group, "comment", "");
                 profile.prompt = get_string(group, "prompt", "");
                 profile.model_path = get_string(group, "model_path", "");
-                
+
                 // Paramètres de sampling
                 profile.temperature = (float)get_double(group, "temperature", 0.7);
                 profile.top_p = (float)get_double(group, "top_p", 0.9);
@@ -411,9 +411,9 @@ namespace Sambo {
                 profile.seed = get_integer(group, "seed", -1);
                 profile.context_length = get_integer(group, "context_length", 2048);
                 profile.stream = get_boolean(group, "stream", true);
-                
+
                 return profile;
-                
+
             } catch (Error e) {
                 warning("Erreur lors du chargement du profil %s: %s", profile_id, e.message);
                 return null;
@@ -425,12 +425,12 @@ namespace Sambo {
          */
         public void save_profile(InferenceProfile profile) {
             string group = "Profile_" + profile.id;
-            
+
             set_string(group, "title", profile.title);
             set_string(group, "comment", profile.comment);
             set_string(group, "prompt", profile.prompt);
             set_string(group, "model_path", profile.model_path);
-            
+
             // Paramètres de sampling
             set_double(group, "temperature", profile.temperature);
             set_double(group, "top_p", profile.top_p);
@@ -442,13 +442,13 @@ namespace Sambo {
             set_integer(group, "seed", profile.seed);
             set_integer(group, "context_length", profile.context_length);
             set_boolean(group, "stream", profile.stream);
-            
+
             // Mettre à jour le cache
             profiles_cache.set(profile.id, profile);
-            
+
             // Sauvegarder la configuration
             save();
-            
+
             profiles_changed.emit();
             print("Profil sauvegardé: %s\n", profile.title);
         }
@@ -460,28 +460,28 @@ namespace Sambo {
             if (!profiles_cache.has_key(profile_id)) {
                 return false;
             }
-            
+
             string group = "Profile_" + profile_id;
-            
+
             try {
                 // Supprimer le groupe de la configuration
                 key_file.remove_group(group);
-                
+
                 // Supprimer du cache
                 profiles_cache.unset(profile_id);
-                
+
                 // Si c'était le profil sélectionné, le désélectionner
                 if (selected_profile_id == profile_id) {
                     selected_profile_id = null;
                     set_string("Profiles", "selected_profile", "");
                 }
-                
+
                 save();
                 profiles_changed.emit();
-                
+
                 print("Profil supprimé: %s\n", profile_id);
                 return true;
-                
+
             } catch (Error e) {
                 warning("Erreur lors de la suppression du profil %s: %s", profile_id, e.message);
                 return false;
@@ -515,11 +515,11 @@ namespace Sambo {
             if (!profiles_loaded) {
                 load_profiles();
             }
-            
+
             if (selected_profile_id == null || selected_profile_id == "") {
                 return null;
             }
-            
+
             return profiles_cache.get(selected_profile_id);
         }
 
@@ -531,11 +531,11 @@ namespace Sambo {
                 warning("Tentative de sélection d'un profil inexistant: %s", profile_id);
                 return;
             }
-            
+
             selected_profile_id = profile_id;
             set_string("Profiles", "selected_profile", profile_id);
             save();
-            
+
             profiles_changed.emit();
             print("Profil sélectionné: %s\n", profile_id);
         }
@@ -547,7 +547,7 @@ namespace Sambo {
             selected_profile_id = null;
             set_string("Profiles", "selected_profile", "");
             save();
-            
+
             profiles_changed.emit();
             print("Aucun profil sélectionné\n");
         }
@@ -579,7 +579,7 @@ namespace Sambo {
             if (!profiles_loaded) {
                 load_profiles();
             }
-            
+
             if (profiles_cache.size == 0) {
                 // Créer un profil par défaut
                 var default_profile = InferenceProfile.create_default(
@@ -587,11 +587,17 @@ namespace Sambo {
                     "Profil par défaut"
                 );
                 default_profile.comment = "Profil par défaut créé automatiquement";
-                
+
                 save_profile(default_profile);
                 select_profile(default_profile.id);
-                
+
                 print("Profil par défaut créé et sélectionné\n");
+            } else if (selected_profile_id == null || selected_profile_id == "" || 
+                       !profiles_cache.has_key(selected_profile_id)) {
+                // S'assurer qu'un profil est sélectionné si des profils existent
+                var first_profile = profiles_cache.values.to_array()[0];
+                select_profile(first_profile.id);
+                print(@"Profil sélectionné automatiquement : $(first_profile.title)\n");
             }
         }
 

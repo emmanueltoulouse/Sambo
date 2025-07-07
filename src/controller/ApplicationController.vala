@@ -457,5 +457,22 @@ namespace Sambo {
                 main_win.apply_editor_style_to_all_tabs(font_size, font_family, font_color);
             }
         }
+
+        /**
+         * Obtient le gestionnaire de modèles IA
+         */
+        public ModelManager get_model_manager() {
+            return model.model_manager;
+        }
+
+        /**
+         * Génère une réponse IA avec les paramètres fournis
+         * @param prompt Le prompt complet
+         * @param params Les paramètres de sampling
+         * @param callback Fonction de callback pour le streaming
+         */
+        public string? generate_ai_response(string prompt, Llama.SamplingParams params, owned ModelManager.GenerationCallback? callback = null) {
+            return model.model_manager.generate_response(prompt, params, (owned) callback);
+        }
     }
 }

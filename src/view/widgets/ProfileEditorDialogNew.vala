@@ -1,6 +1,5 @@
 using Gtk;
 using Adw;
-using Gee;
 
 namespace Sambo {
     /**
@@ -77,7 +76,6 @@ namespace Sambo {
             // Toast overlay principal
             toast_overlay = new Adw.ToastOverlay();
             set_content(toast_overlay);
-            add_css_class("profile-editor-dialog");
 
             var main_box = new Box(Orientation.VERTICAL, 0);
             toast_overlay.set_child(main_box);
@@ -90,59 +88,45 @@ namespace Sambo {
             var scrolled = new ScrolledWindow();
             scrolled.set_policy(PolicyType.NEVER, PolicyType.AUTOMATIC);
             scrolled.set_vexpand(true);
-            scrolled.add_css_class("profile-editor-scroll");
 
             preferences_page = new Adw.PreferencesPage();
             preferences_page.set_title("Configuration du profil");
             preferences_page.set_icon_name("user-info-symbolic");
-            preferences_page.add_css_class("profile-editor-page");
 
             scrolled.set_child(preferences_page);
             main_box.append(scrolled);
 
-            // Créer les sections avec design moderne
+            // Créer les sections
             create_general_section();
             create_model_section();
             create_prompt_section();
             create_sampling_section();
             create_advanced_section();
-            create_preview_section();
         }
 
         private void setup_header_bar() {
             header_bar = new Adw.HeaderBar();
             header_bar.add_css_class("flat");
-            header_bar.add_css_class("profile-editor-header");
 
-            // Bouton annuler avec style moderne
+            // Bouton annuler
             cancel_button = new Button.with_label("Annuler");
-            cancel_button.add_css_class("profile-cancel-button");
             cancel_button.clicked.connect(() => this.close());
             header_bar.pack_start(cancel_button);
 
-            // Bouton sauvegarder avec style moderne
-            save_button = new Button.with_label(is_editing ? "💾 Enregistrer" : "✨ Créer");
+            // Bouton sauvegarder
+            save_button = new Button.with_label(is_editing ? "Enregistrer" : "Créer");
             save_button.add_css_class("suggested-action");
-            save_button.add_css_class("profile-save-button");
             save_button.clicked.connect(on_save_clicked);
             header_bar.pack_end(save_button);
 
-            // Bouton de test rapide
-            var test_button = new Button.with_label("🧪 Tester");
-            test_button.add_css_class("flat");
-            test_button.add_css_class("profile-test-button");
-            test_button.set_tooltip_text("Tester les paramètres actuels");
-            header_bar.pack_end(test_button);
-
-            // Titre avec icône animée
-            var title_box = new Box(Orientation.HORIZONTAL, 8);
-            var icon = new Image.from_icon_name(is_editing ? "document-edit-symbolic" : "document-new-symbolic");
-            icon.add_css_class("profile-header-icon");
+            // Titre avec icône
+            var title_box = new Box(Orientation.HORIZONTAL, 6);
+            var icon = new Image.from_icon_name("user-info-symbolic");
+            icon.add_css_class("accent");
             title_box.append(icon);
 
             var title_label = new Label(is_editing ? "Éditer le profil" : "Nouveau profil");
             title_label.add_css_class("heading");
-            title_label.add_css_class("profile-header-title");
             title_box.append(title_label);
 
             header_bar.set_title_widget(title_box);
@@ -152,9 +136,8 @@ namespace Sambo {
             var group = new Adw.PreferencesGroup();
             group.set_title("✨ Informations générales");
             group.set_description("Nom et description de votre profil d'inférence");
-            group.add_css_class("profile-general-section");
 
-            // Titre avec validation en temps réel et suggestions
+            // Titre avec validation en temps réel
             title_entry = new Adw.EntryRow();
             title_entry.set_title("Nom du profil");
             title_entry.set_text(editing_profile.title);
@@ -162,49 +145,17 @@ namespace Sambo {
             title_icon.add_css_class("accent");
             title_entry.add_prefix(title_icon);
 
-            // Bouton de suggestion de nom
-            var suggest_button = new Button.from_icon_name("view-refresh-symbolic");
-            suggest_button.add_css_class("flat");
-            suggest_button.set_tooltip_text("Suggérer un nom automatiquement");
-            suggest_button.clicked.connect(() => {
-                var suggestions = new string[] {
-                    "Profil Créatif", "Assistant Personnel", "Rédacteur Pro",
-                    "Analyste Expert", "Codeur IA", "Tuteur Intelligent"
-                };
-                var random_index = Random.int_range(0, suggestions.length);
-                title_entry.set_text(suggestions[random_index]);
-                validate_form();
-            });
-            title_entry.add_suffix(suggest_button);
-
             title_entry.changed.connect(() => {
                 validate_form();
             });
             group.add(title_entry);
 
-            // Commentaire optionnel avec compteur de caractères
+            // Commentaire optionnel
             comment_entry = new Adw.EntryRow();
             comment_entry.set_title("Description (optionnel)");
             comment_entry.set_text(editing_profile.comment);
             var comment_icon = new Image.from_icon_name("text-x-script-symbolic");
-            comment_icon.add_css_class("dim-label");
             comment_entry.add_prefix(comment_icon);
-
-            var char_count = new Gtk.Label("0/100");
-            char_count.add_css_class("caption");
-            char_count.add_css_class("dim-label");
-            comment_entry.add_suffix(char_count);
-
-            comment_entry.changed.connect(() => {
-                var text = comment_entry.get_text();
-                char_count.set_text(text.length.to_string() + "/100");
-                if (text.length > 100) {
-                    char_count.add_css_class("error");
-                } else {
-                    char_count.remove_css_class("error");
-                }
-            });
-
             group.add(comment_entry);
 
             preferences_page.add(group);
@@ -214,59 +165,31 @@ namespace Sambo {
             var group = new Adw.PreferencesGroup();
             group.set_title("🤖 Modèle d'IA");
             group.set_description("Sélectionnez le modèle à utiliser pour ce profil");
-            group.add_css_class("profile-model-section");
 
-            // Libellé au-dessus du dropdown
-            var model_label_row = new Adw.ActionRow();
-            model_label_row.set_title("Modèle sélectionné");
-            model_label_row.set_subtitle("Choisissez parmi les modèles disponibles");
-            var model_icon = new Image.from_icon_name("applications-science-symbolic");
-            model_icon.add_css_class("accent");
-            model_label_row.add_prefix(model_icon);
-            group.add(model_label_row);
-
-            // Dropdown moderne pour les modèles avec aperçu
+            // Dropdown moderne pour les modèles
             model_list = new StringList(null);
             populate_model_list();
 
             model_dropdown = new DropDown(model_list, null);
-            model_dropdown.set_size_request(-1, -1);
-            model_dropdown.add_css_class("profile-model-dropdown");
+            model_dropdown.set_size_request(300, -1);
 
-            // Container pour centrer le dropdown
-            var model_container = new Box(Orientation.HORIZONTAL, 12);
-            model_container.set_halign(Align.FILL);
-            model_container.set_margin_start(12);
-            model_container.set_margin_end(12);
-            model_container.set_margin_top(6);
-            model_container.set_margin_bottom(6);
-            model_container.append(model_dropdown);
+            var model_row = new Adw.ActionRow();
+            model_row.set_title("Modèle sélectionné");
+            model_row.set_subtitle("Choisissez parmi les modèles disponibles");
+            var model_icon = new Image.from_icon_name("applications-science-symbolic");
+            model_icon.add_css_class("accent");
+            model_row.add_prefix(model_icon);
+            model_row.add_suffix(model_dropdown);
+            group.add(model_row);
 
-            var model_widget_row = new Adw.ActionRow();
-            model_widget_row.set_child(model_container);
-            group.add(model_widget_row);
-
-            // Indicateur de statut du modèle avec détails
+            // Indicateur de statut du modèle
             var status_row = new Adw.ActionRow();
-            status_row.set_title("Statut du modèle");
+            status_row.set_title("Statut");
             var status_icon = new Image.from_icon_name("emblem-default-symbolic");
             status_icon.add_css_class("success");
             status_row.add_prefix(status_icon);
-            status_row.set_subtitle("✅ Modèle prêt à utiliser");
+            status_row.set_subtitle("Modèle prêt à utiliser");
             group.add(status_row);
-
-            // Informations sur le modèle
-            var info_row = new Adw.ActionRow();
-            info_row.set_title("Informations");
-            info_row.set_subtitle("📊 Taille, type et performances du modèle");
-            var info_icon = new Image.from_icon_name("dialog-information-symbolic");
-            info_icon.add_css_class("dim-label");
-            info_row.add_prefix(info_icon);
-            info_row.set_activatable(true);
-            info_row.activated.connect(() => {
-                show_toast("🔍 Informations détaillées du modèle (à venir)");
-            });
-            group.add(info_row);
 
             preferences_page.add(group);
         }
@@ -276,23 +199,10 @@ namespace Sambo {
             group.set_title("💬 Prompt système");
             group.set_description("Instructions qui seront données à l'IA");
 
-            // Libellé au-dessus de la zone de texte
-            var prompt_label_row = new Adw.ActionRow();
-            prompt_label_row.set_title("Contenu du prompt");
-            prompt_label_row.set_subtitle("Rédigez les instructions pour l'IA");
-            var prompt_icon = new Image.from_icon_name("text-x-script-symbolic");
-            prompt_icon.add_css_class("accent");
-            prompt_label_row.add_prefix(prompt_icon);
-            group.add(prompt_label_row);
-
-            // Zone de texte moderne pour le prompt dans une ActionRow
+            // Zone de texte moderne pour le prompt
             var prompt_frame = new Frame(null);
             prompt_frame.add_css_class("card");
-            prompt_frame.set_size_request(-1, 180);
-            prompt_frame.set_margin_start(12);
-            prompt_frame.set_margin_end(12);
-            prompt_frame.set_margin_top(6);
-            prompt_frame.set_margin_bottom(6);
+            prompt_frame.set_size_request(-1, 200);
 
             var prompt_scroll = new ScrolledWindow();
             prompt_scroll.set_policy(PolicyType.AUTOMATIC, PolicyType.AUTOMATIC);
@@ -309,10 +219,7 @@ namespace Sambo {
             });
 
             prompt_scroll.set_child(prompt_textview);
-
-            var prompt_widget_row = new Adw.ActionRow();
-            prompt_widget_row.set_child(prompt_frame);
-            group.add(prompt_widget_row);
+            group.set_header_suffix(prompt_frame);
 
             // Boutons d'aide pour le prompt
             var actions_row = new Adw.ActionRow();
@@ -609,125 +516,6 @@ Tu es un assistant de recherche rigoureux. Fournis des informations factuelles e
             // Émettre le signal et fermer
             profile_saved.emit(editing_profile);
             this.close();
-        }
-
-        /**
-         * Crée une section de prévisualisation moderne du profil
-         */
-        private void create_preview_section() {
-            var group = new Adw.PreferencesGroup();
-            group.set_title("🔍 Aperçu du profil");
-            group.set_description("Visualisation en temps réel de votre profil");
-            group.add_css_class("profile-preview-section");
-
-            // Carte de prévisualisation
-            var preview_card = new Adw.ActionRow();
-            preview_card.set_title("Aperçu en temps réel");
-            preview_card.set_subtitle("Vos modifications apparaîtront ici");
-            preview_card.add_css_class("profile-preview-card");
-
-            var preview_icon = new Image.from_icon_name("view-reveal-symbolic");
-            preview_icon.add_css_class("accent");
-            preview_card.add_prefix(preview_icon);
-
-            var refresh_button = new Button.from_icon_name("view-refresh-symbolic");
-            refresh_button.add_css_class("flat");
-            refresh_button.set_tooltip_text("Actualiser l'aperçu");
-            refresh_button.clicked.connect(update_preview);
-            preview_card.add_suffix(refresh_button);
-
-            group.add(preview_card);
-
-            // Statistiques du profil
-            var stats_expander = new Adw.ExpanderRow();
-            stats_expander.set_title("📊 Statistiques");
-            stats_expander.set_subtitle("Informations détaillées sur le profil");
-            stats_expander.add_css_class("profile-stats-expander");
-
-            var stats_content = new Box(Orientation.VERTICAL, 8);
-            stats_content.set_margin_start(12);
-            stats_content.set_margin_end(12);
-            stats_content.set_margin_top(8);
-            stats_content.set_margin_bottom(8);
-
-            var prompt_length_label = new Label("Longueur du prompt : 0 caractères");
-            prompt_length_label.add_css_class("caption");
-            prompt_length_label.set_xalign(0);
-            stats_content.append(prompt_length_label);
-
-            var complexity_label = new Label("Complexité : Équilibrée");
-            complexity_label.add_css_class("caption");
-            complexity_label.set_xalign(0);
-            stats_content.append(complexity_label);
-
-            var estimated_tokens_label = new Label("Tokens estimés : ~150");
-            estimated_tokens_label.add_css_class("caption");
-            estimated_tokens_label.set_xalign(0);
-            stats_content.append(estimated_tokens_label);
-
-            stats_expander.add_row(stats_content);
-            group.add(stats_expander);
-
-            // Conseils d'optimisation
-            var tips_expander = new Adw.ExpanderRow();
-            tips_expander.set_title("💡 Conseils d'optimisation");
-            tips_expander.set_subtitle("Améliorez les performances de votre profil");
-            tips_expander.add_css_class("profile-tips-expander");
-
-            var tips_content = new Box(Orientation.VERTICAL, 8);
-            tips_content.set_margin_start(12);
-            tips_content.set_margin_end(12);
-            tips_content.set_margin_top(8);
-            tips_content.set_margin_bottom(8);
-
-            var tip1 = new Label("• Une température entre 0.3 et 0.8 donne de bons résultats");
-            tip1.add_css_class("caption");
-            tip1.set_xalign(0);
-            tips_content.append(tip1);
-
-            var tip2 = new Label("• Un prompt concis et précis améliore la qualité des réponses");
-            tip2.add_css_class("caption");
-            tip2.set_xalign(0);
-            tips_content.append(tip2);
-
-            var tip3 = new Label("• Activez le streaming pour une meilleure expérience utilisateur");
-            tip3.add_css_class("caption");
-            tip3.set_xalign(0);
-            tips_content.append(tip3);
-
-            tips_expander.add_row(tips_content);
-            group.add(tips_expander);
-
-            preferences_page.add(group);
-        }
-
-        /**
-         * Met à jour l'aperçu du profil en temps réel
-         */
-        private void update_preview() {
-            // Mise à jour des statistiques basées sur les valeurs actuelles
-            var prompt_text = "";
-            TextIter start, end;
-            prompt_textview.get_buffer().get_bounds(out start, out end);
-            prompt_text = prompt_textview.get_buffer().get_text(start, end, false);
-
-            // Calcul de la complexité basée sur la température
-            var temp = (float)temperature_row.get_value();
-            string complexity;
-            if (temp < 0.3) {
-                complexity = "🟢 Déterministe";
-            } else if (temp < 0.7) {
-                complexity = "🟡 Équilibrée";
-            } else if (temp < 1.2) {
-                complexity = "🟠 Créative";
-            } else {
-                complexity = "🔴 Très créative";
-            }
-
-            // Estimation des tokens (approximation simple)
-            var estimated_tokens = (int)(prompt_text.length / 4.0 + 50);
-
-            show_toast("🔄 Aperçu mis à jour");
         }
 
         private void show_toast(string message) {

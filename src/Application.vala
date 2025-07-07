@@ -136,7 +136,7 @@ namespace Sambo {
         private void load_profile_css() {
             try {
                 var css_provider = new Gtk.CssProvider();
-                css_provider.load_from_resource("/com/cabineteto/Sambo/profile-manager-modern.css");
+                css_provider.load_from_resource("/com/cabineteto/Sambo/profile-manager-simple.css");
 
                 Gtk.StyleContext.add_provider_for_display(
                     Gdk.Display.get_default(),
@@ -144,10 +144,10 @@ namespace Sambo {
                     Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 1
                 );
 
-                print("✨ CSS moderne des profils chargé avec succès\n");
+                print("✨ CSS simple des profils chargé avec succès\n");
             } catch (Error e) {
                 stderr.printf("⚠️ Erreur lors du chargement du CSS des profils : %s\n", e.message);
-                // Continuer sans le CSS moderne si le chargement échoue
+                // Continuer sans le CSS simple si le chargement échoue
             }
         }
 
@@ -191,6 +191,8 @@ namespace Sambo {
             // Utiliser un court délai pour être sûr que tout est dessiné.
             Timeout.add(100, () => {
                 controller.connect_explorer_signals();
+                // Recharger le profil après l'initialisation complète
+                main_window.refresh_profile_selection();
                 return false; // Exécuter une seule fois
             });
         }

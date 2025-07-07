@@ -282,6 +282,15 @@ namespace Sambo {
         }
 
         /**
+         * Rafraîchit la sélection de profil dans le ChatView
+         */
+        public void refresh_profile_selection() {
+            if (chat_view != null) {
+                chat_view.refresh_profile_selection();
+            }
+        }
+
+        /**
          * Exécute une commande dans le terminal
          * Cette méthode n'est plus utilisée car nous utilisons maintenant TerminalView
          */

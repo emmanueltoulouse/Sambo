@@ -1,0 +1,268 @@
+/* ==== PROFIL MANAGER - STYLE GNOME SOBRE ET SIMPLE ==== */
+
+/* Fenêtre principale */
+.profile-manager-window {
+    background: #fafafa;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* Header sobre avec couleurs GNOME natives */
+.profile-header {
+    background: #f6f5f4;
+    border-radius: 8px 8px 0 0;
+    border-bottom: 1px solid #d1d1d1;
+}
+
+.profile-title-icon {
+    color: #3d3d3d;
+}
+
+.profile-title {
+    color: #2d2d2d;
+    font-weight: 600;
+}
+
+.profile-add-button {
+    background: #dbeafe;
+    border: 1px solid #93c5fd;
+    border-radius: 6px;
+    color: #1e40af;
+    transition: all 0.2s ease;
+}
+
+.profile-add-button:hover {
+    background: #bfdbfe;
+    border-color: #60a5fa;
+}
+
+.profile-menu-button {
+    background: #f3f4f6;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    color: #374151;
+    transition: all 0.2s ease;
+}
+
+.profile-menu-button:hover {
+    background: #e5e7eb;
+    border-color: #9ca3af;
+}
+
+/* Styles simples pour les profils */
+.profile-row {
+    padding: 16px;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    min-height: 64px;
+}
+
+.profile-row:hover {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+.profile-row-active {
+    background: rgba(53, 132, 228, 0.08);
+    border-left: 3px solid #3584e4;
+}
+
+.profile-active-badge {
+    background: #3584e4;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    font-weight: 600;
+}
+
+.profile-arrow {
+    opacity: 0.5;
+    transition: opacity 0.2s ease;
+}
+
+.profile-row:hover .profile-arrow {
+    opacity: 1;
+}
+
+.profile-active-icon {
+    color: #059669;
+}
+
+.profile-inactive-icon {
+    color: #9ca3af;
+}
+
+/* Bannière du profil actuel */
+.profile-current-banner {
+    background: linear-gradient(135deg, #dbeafe 0%, #e0f2fe 100%);
+    border: 1px solid #93c5fd;
+    border-radius: 8px;
+    color: #1e40af;
+    font-weight: 500;
+    margin: 16px;
+    padding: 12px;
+}
+
+/* Actions dans les détails */
+.profile-actions-group {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 8px;
+}
+
+.profile-actions-group .success {
+    color: #059669;
+}
+
+.profile-actions-group .destructive-action {
+    color: #dc2626;
+}
+
+.profile-actions-group .accent {
+    color: #3584e4;
+}
+
+/* État vide */
+.profile-empty-state {
+    background: #ffffff;
+    border: 2px dashed #d1d5db;
+    border-radius: 12px;
+    padding: 48px;
+    color: #6b7280;
+    margin: 32px;
+}
+
+.profile-empty-state .title {
+    color: #374151;
+    font-size: 1.2em;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.profile-empty-state .subtitle {
+    color: #6b7280;
+    font-size: 0.9em;
+    margin-bottom: 24px;
+}
+
+.profile-empty-state .icon {
+    font-size: 4em;
+    color: #d1d5db;
+    margin-bottom: 16px;
+}
+
+/* Autres styles pour cohérence */
+.profile-list {
+    background: #ffffff;
+    border-radius: 8px;
+    margin: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.profile-scrolled {
+    background: #fafafa;
+}
+
+/* Styles pour les détails */
+.profile-detail-header {
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    border-radius: 8px;
+    padding: 16px;
+    margin: 16px;
+}
+
+.profile-detail-header .title {
+    color: #1e293b;
+    font-size: 1.3em;
+    font-weight: 600;
+}
+
+.profile-detail-header .subtitle {
+    color: #64748b;
+    font-size: 0.9em;
+    margin-top: 4px;
+}
+
+.profile-prompt-content {
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 12px;
+    font-family: monospace;
+    font-size: 0.9em;
+    color: #334155;
+}
+
+.profile-param-value {
+    color: #3584e4;
+    font-weight: 600;
+}
+
+.profile-model-missing {
+    color: #dc2626;
+    font-weight: 600;
+}
+
+.profile-model {
+    color: #059669;
+    font-weight: 500;
+}
+
+.profile-comment {
+    color: #6b7280;
+    font-style: italic;
+}
+
+.profile-params {
+    color: #475569;
+    font-size: 0.85em;
+}
+
+/* Layout de la page des détails */
+.profile-details-box {
+    min-height: 500px;
+}
+
+.profile-details-page {
+    margin: 0;
+    padding: 12px;
+}
+
+/* Scrolled window pour les détails */
+scrolledwindow.profile-details-scrolled {
+    min-height: 450px;
+}
+
+/* Header des détails */
+.profile-details-header {
+    padding: 8px 12px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+}
+
+/* Groupes de préférences */
+.profile-general-group,
+.profile-parameters-group,
+.profile-prompt-group,
+.profile-actions-group {
+    margin-bottom: 16px;
+}
+
+.profile-general-group preferencesgroup,
+.profile-parameters-group preferencesgroup,
+.profile-prompt-group preferencesgroup,
+.profile-actions-group preferencesgroup {
+    margin-bottom: 8px;
+}
+
+/* Contenu du prompt */
+.profile-prompt-content {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    padding: 12px;
+    font-family: monospace;
+    font-size: 0.9em;
+    min-height: 150px;
+}

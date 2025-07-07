@@ -6,5 +6,6 @@
     <file>explorer-style.css</file>
     <file>profile-manager-style.css</file>
     <file>profile-manager-modern.css</file>
+    <file>profile-manager-simple.css</file>
   </gresource>
 </gresources>

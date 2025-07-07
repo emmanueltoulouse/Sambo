@@ -55,23 +55,23 @@ namespace Sambo {
          */
         public string[] get_validation_errors() {
             var errors = new ArrayList<string>();
-            
+
             if (id == "") {
                 errors.add("ID du profil requis");
             }
-            
+
             if (title == "") {
                 errors.add("Titre du profil requis");
             }
-            
+
             if (prompt == "") {
                 errors.add("Prompt système requis");
             }
-            
+
             if (model_path == "") {
                 errors.add("Modèle requis");
             }
-            
+
             return errors.to_array();
         }
 

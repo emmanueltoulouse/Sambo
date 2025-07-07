@@ -11,11 +11,14 @@ namespace Sambo {
         private bool is_model_loaded = false;
         private bool is_backend_initialized = false;
         private bool is_simulation_mode = false; // Mode réel par défaut
+        private bool is_generation_cancelled = false; // Pour annuler la génération
+        private Thread<void*>? current_generation_thread = null; // Thread actuel
 
         // Signaux pour informer l'interface
         public signal void model_loaded(string model_path, string model_name);
         public signal void model_load_failed(string model_path, string error_message);
         public signal void model_unloaded();
+        public signal void generation_cancelled(); // Signal d'annulation
 
         /**
          * Singleton - obtenir l'instance unique
@@ -28,9 +31,9 @@ namespace Sambo {
         }
 
         /**
-         * Constructeur privé (pattern singleton)
+         * Constructeur public
          */
-        private ModelManager() {
+        public ModelManager() {
             // Initialiser le backend llama.cpp
             init_backend();
         }
@@ -199,6 +202,180 @@ namespace Sambo {
             }
             return Path.get_basename(current_model_path);
         }
+
+        /**
+         * Génère une réponse IA en utilisant les paramètres fournis
+         * @param prompt Le prompt complet avec contexte
+         * @param params Les paramètres de sampling
+         * @param callback Fonction appelée pour chaque token généré (pour le streaming)
+         * @return La réponse complète ou null en cas d'erreur
+         */
+        public string? generate_response(string prompt, Llama.SamplingParams params, owned GenerationCallback? callback = null) {
+            if (!is_model_loaded) {
+                stderr.printf("❌ MODELMANAGER: Aucun modèle chargé pour la génération\n");
+                return null;
+            }
+
+            // Annuler toute génération en cours
+            if (is_generating()) {
+                cancel_generation();
+                // Attendre un peu que le thread précédent se termine
+                Thread.usleep(100000); // 100ms
+            }
+
+            // Réinitialiser le flag d'annulation
+            is_generation_cancelled = false;
+
+            if (is_simulation_mode) {
+                return generate_simulated_response(prompt, params, (owned) callback);
+            }
+
+            // Génération asynchrone pour éviter de bloquer l'UI
+            generate_response_async.begin(prompt, params, (owned) callback, (obj, res) => {
+                // Nettoyer la référence du thread une fois terminé
+                current_generation_thread = null;
+            });
+            
+            return null; // La réponse sera fournie via le callback
+        }
+
+        /**
+         * Génération asynchrone pour éviter de bloquer l'interface utilisateur
+         */
+        private async void generate_response_async(string prompt, Llama.SamplingParams params, owned GenerationCallback? callback) {
+            // Créer un thread pour la génération
+            current_generation_thread = new Thread<void*>("ai_generation", () => {
+                stderr.printf("Démarrage de la génération avec llama.cpp...\n");
+                
+                // Vérifier l'annulation avant de commencer
+                if (is_generation_cancelled) {
+                    Idle.add(() => {
+                        if (callback != null) {
+                            callback("⏹️ Génération annulée", true);
+                        }
+                        return false;
+                    });
+                    return null;
+                }
+                
+                // Estimation approximative du nombre de tokens (1 token ≈ 4 caractères)
+                var estimated_tokens = prompt.length / 4;
+                stderr.printf("Prompt estimé : %d tokens\n", estimated_tokens);
+                
+                // Vérifier l'annulation avant la génération
+                if (is_generation_cancelled) {
+                    Idle.add(() => {
+                        if (callback != null) {
+                            callback("⏹️ Génération annulée", true);
+                        }
+                        return false;
+                    });
+                    return null;
+                }
+                
+                // Génération réelle via llama.cpp
+                string? response = Llama.generate_simple(prompt, &params);
+                
+                // Vérifier l'annulation après la génération
+                if (is_generation_cancelled) {
+                    Idle.add(() => {
+                        if (callback != null) {
+                            callback("⏹️ Génération annulée", true);
+                        }
+                        return false;
+                    });
+                    return null;
+                }
+                
+                if (response != null && response.length > 0) {
+                    stderr.printf("Génération terminée avec succès\n");
+                    // Appeler le callback dans le thread principal
+                    Idle.add(() => {
+                        if (callback != null) {
+                            callback(response, true); // true = terminé
+                        }
+                        return false;
+                    });
+                } else {
+                    stderr.printf("❌ MODELMANAGER: Génération échouée ou réponse vide\n");
+                    Idle.add(() => {
+                        if (callback != null) {
+                            callback("❌ Erreur lors de la génération", true);
+                        }
+                        return false;
+                    });
+                }
+                
+                return null;
+            });
+            
+            // Attendre la fin du thread de manière asynchrone
+            yield;
+        }
+
+        /**
+         * Génère une réponse simulée pour les tests
+         */
+        private string generate_simulated_response(string prompt, Llama.SamplingParams params, owned GenerationCallback? callback) {
+            string response = """Réponse simulée du modèle IA.
+
+🤖 **Modèle** : %s
+🌡️ **Température** : %.2f
+🎯 **Top-P** : %.2f
+🔢 **Top-K** : %d
+📝 **Max tokens** : %d
+
+Votre message : "%s"
+
+Cette réponse est générée en mode simulation car llama.cpp n'est pas disponible ou aucun modèle n'est chargé.
+""".printf(
+                get_current_model_name(), 
+                params.temperature, 
+                params.top_p, 
+                params.top_k, 
+                params.max_tokens,
+                prompt.length > 100 ? prompt[0:100] + "..." : prompt
+            );
+
+            if (callback != null) {
+                // Simuler le streaming progressif
+                string[] words = response.split(" ");
+                string partial = "";
+                
+                foreach (string word in words) {
+                    partial += word + " ";
+                    callback(partial, false);
+                    Thread.usleep(50000); // 50ms de délai pour simuler le streaming
+                }
+                
+                callback(response, true); // Signal de fin
+            }
+
+            return response;
+        }
+
+        /**
+         * Annule la génération en cours
+         */
+        public void cancel_generation() {
+            is_generation_cancelled = true;
+            generation_cancelled.emit();
+            stderr.printf("🛑 MODELMANAGER: Génération annulée par l'utilisateur\n");
+        }
+
+        /**
+         * Vérifie si une génération est en cours
+         */
+        public bool is_generating() {
+            return current_generation_thread != null;
+        }
+
+        /**
+         * Type de délégué pour les callbacks de génération (streaming)
+         * @param partial_response Réponse partielle courante
+         * @param is_finished true si la génération est terminée
+         */
+        public delegate void GenerationCallback(string partial_response, bool is_finished);
 
         /**
          * Destructeur - libère les ressources

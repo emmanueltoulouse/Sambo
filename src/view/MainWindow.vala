@@ -685,6 +685,16 @@ public class MainWindow : Adw.ApplicationWindow {
         }
         return null;
     }
+
+    /**
+     * Rafraîchit la sélection de profil après l'initialisation complète
+     */
+    public void refresh_profile_selection() {
+        // Demander au CommunicationView de recharger le profil
+        if (communication_view != null) {
+            communication_view.refresh_profile_selection();
+        }
+    }
 }
 
 }
