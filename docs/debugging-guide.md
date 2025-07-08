@@ -76,7 +76,7 @@ export LLAMA_LOG_DISABLE=1
 ### Warnings GTK de Layout
 - **Problème** : Messages répétitifs "Trying to measure GtkBox for height X, but it needs at least 463"
 - **Cause** : Contraintes de taille insuffisantes dans ProfileManager
-- **Solution** : 
+- **Solution** :
   - Ajout de `set_size_request(-1, 500)` pour le details_box
   - Ajout de `set_size_request(-1, 400)` pour la ScrolledWindow
   - Mise à jour CSS avec des min-height appropriées

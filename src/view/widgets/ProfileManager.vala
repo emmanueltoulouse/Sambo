@@ -311,7 +311,7 @@ namespace Sambo {
 
             details_box.append(details_header);
             details_box.append(scrolled_details);
-            
+
             // S'assurer que la ScrolledWindow prend toute la hauteur disponible
             scrolled_details.set_vexpand(true);
             scrolled_details.set_hexpand(true);
@@ -394,7 +394,7 @@ namespace Sambo {
 
             // Stocker l'ID du profil dans les données de la row
             row.set_data("profile_id", profile.id);
-            
+
             // Note: Ne pas rendre la row activable car on veut seulement le double-clic
             // row.set_activatable(true);
 
@@ -412,15 +412,12 @@ namespace Sambo {
                 selected_profile_id = action_row.get_data<string>("profile_id");
 
                 if (selected_profile_id == null) {
-                    print("Erreur : ID du profil non trouvé\n");
                     return;
                 }
 
                 current_profile = config_manager.get_profile(selected_profile_id);
 
                 if (current_profile != null) {
-                    print(@"Ouverture des détails du profil : $(current_profile.title)\n");
-
                     // Utiliser Idle.add pour éviter les blocages
                     Idle.add(() => {
                         show_profile_details(current_profile);
@@ -428,11 +425,9 @@ namespace Sambo {
                         return false;
                     });
                 } else {
-                    print(@"Erreur : Profil introuvable avec l'ID : $(selected_profile_id)\n");
                     show_toast("❌ Profil introuvable");
                 }
             } catch (Error e) {
-                print(@"Erreur lors de l'ouverture des détails : $(e.message)\n");
                 show_toast("❌ Erreur lors de l'ouverture des détails");
             }
         }

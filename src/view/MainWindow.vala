@@ -48,24 +48,6 @@ public class MainWindow : Adw.ApplicationWindow {
         // Traces pour debug icône
         stdout.printf("[TRACE] MainWindow: set_icon_name(com.cabineteto.Sambo)\n");
         this.set_icon_name("com.cabineteto.Sambo");
-        stdout.printf("[TRACE] CWD: %s\n", GLib.Environment.get_current_dir());
-        stdout.printf("[TRACE] GTK_ICON_THEME: %s\n", GLib.Environment.get_variable("GTK_ICON_THEME"));
-        stdout.printf("[TRACE] XDG_DATA_DIRS: %s\n", GLib.Environment.get_variable("XDG_DATA_DIRS"));
-        stdout.printf("[TRACE] XDG_DATA_HOME: %s\n", GLib.Environment.get_variable("XDG_DATA_HOME"));
-        stdout.printf("[TRACE] Recherche de l'icône dans les chemins standards...\n");
-        string[] icon_paths = {
-            "./data/icons/hicolor/scalable/apps/com.cabineteto.Sambo.png",
-            "/usr/share/icons/hicolor/scalable/apps/com.cabineteto.Sambo.png",
-            "/usr/local/share/icons/hicolor/scalable/apps/com.cabineteto.Sambo.png",
-            Environment.get_home_dir() + "/.local/share/icons/hicolor/scalable/apps/com.cabineteto.Sambo.png"
-        };
-        foreach (var path in icon_paths) {
-            if (GLib.FileUtils.test(path, GLib.FileTest.EXISTS)) {
-                stdout.printf("[TRACE] Icône trouvée: %s\n", path);
-            } else {
-                stdout.printf("[TRACE] Icône absente: %s\n", path);
-            }
-        }
 
         setup_ui();
         setup_actions();
@@ -221,10 +203,6 @@ public class MainWindow : Adw.ApplicationWindow {
                 website = "https://cabineteto.com",
                 website_label = _("Site Web")
             };
-            // Traces supplémentaires pour debug AboutDialog
-            stdout.printf("[TRACE] AboutDialog: logo_icon_name=%s\n", about.logo_icon_name);
-            stdout.printf("[TRACE] AboutDialog: theme_name=%s\n", Gtk.IconTheme.get_for_display(this.get_display()).get_theme_name());
-            stdout.printf("[TRACE] AboutDialog: display=%p\n", this.get_display());
             about.present();
         });
 

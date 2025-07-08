@@ -417,14 +417,14 @@ namespace Sambo {
 
             is_processing = true;
             status_label.set_text("Génération en cours...");
-            
+
             // Afficher les indicateurs de progression et le bouton d'annulation
             progress_bar.set_visible(true);
             progress_bar.pulse(); // Animation de progression indéterminée
             cancel_generation_button.set_visible(true);
             send_button.set_sensitive(false);
             message_entry.set_sensitive(false);
-            
+
             // Démarrer l'animation de progression
             var progress_timeout = Timeout.add(100, () => {
                 if (is_processing) {
@@ -497,7 +497,6 @@ namespace Sambo {
             if (!model_manager.is_model_ready()) {
                 // Tenter de charger le modèle du profil
                 if (current_profile.model_path != "" && FileUtils.test(current_profile.model_path, FileTest.EXISTS)) {
-                    print(@"Chargement du modèle : $(current_profile.model_path)\n");
                     if (!model_manager.load_model(current_profile.model_path)) {
                         show_error_response("❌ Impossible de charger le modèle : " + current_profile.model_path);
                         return;
@@ -520,7 +519,7 @@ namespace Sambo {
                         status_label.set_text("Profil : " + current_profile.title);
                         current_ai_message = null;
                         current_ai_bubble = null;
-                        
+
                         // Masquer les indicateurs de progression et réactiver l'envoi
                         progress_bar.set_visible(false);
                         cancel_generation_button.set_visible(false);
@@ -540,18 +539,18 @@ namespace Sambo {
                 current_ai_bubble.update_content();
                 scroll_to_bottom();
             }
-            
+
             is_processing = false;
             status_label.set_text("❌ Erreur");
             current_ai_message = null;
             current_ai_bubble = null;
-            
+
             // Masquer les indicateurs de progression et réactiver l'envoi
             progress_bar.set_visible(false);
             cancel_generation_button.set_visible(false);
             send_button.set_sensitive(true);
             message_entry.set_sensitive(true);
-            
+
             show_toast(error_message);
         }
 
@@ -586,7 +585,7 @@ namespace Sambo {
             status_label.set_hexpand(true);
 
             status_bar.append(status_label);
-            
+
             // Barre de progression (masquée par défaut)
             progress_bar = new Gtk.ProgressBar();
             progress_bar.add_css_class("generation-progress");
@@ -594,9 +593,9 @@ namespace Sambo {
             progress_bar.set_show_text(true);
             progress_bar.set_visible(false);
             progress_bar.set_size_request(200, -1);
-            
+
             status_bar.append(progress_bar);
-            
+
             return status_bar;
         }
 
@@ -625,15 +624,11 @@ namespace Sambo {
          * Rafraîchit la sélection de profil depuis la configuration
          */
         public void refresh_profile_selection() {
-            print("Rafraîchissement de la sélection de profil...\n");
             load_current_profile();
-            
+
             // Si un profil est maintenant chargé, préparer le modèle
             if (current_profile != null) {
-                print(@"Profil chargé : $(current_profile.title)\n");
                 prepare_model_for_profile();
-            } else {
-                print("Aucun profil sélectionné dans la configuration\n");
             }
         }
 
@@ -646,17 +641,16 @@ namespace Sambo {
             }
 
             var model_manager = controller.get_model_manager();
-            
+
             // Vérifier si le modèle du profil est déjà chargé
-            if (!model_manager.is_model_ready() || 
+            if (!model_manager.is_model_ready() ||
                 model_manager.get_current_model_name() != Path.get_basename(current_profile.model_path)) {
-                
+
                 // Charger le modèle du profil si nécessaire
                 if (FileUtils.test(current_profile.model_path, FileTest.EXISTS)) {
-                    print(@"Préparation du modèle : $(current_profile.model_path)\n");
                     model_manager.load_model(current_profile.model_path);
                 } else {
-                    print(@"Attention : Le modèle $(current_profile.model_path) est introuvable\n");
+                    // Modèle introuvable, mais ne pas afficher de message de debug
                 }
             }
         }
@@ -667,15 +661,49 @@ namespace Sambo {
         private void on_cancel_generation_clicked() {
             var model_manager = controller.get_model_manager();
             model_manager.cancel_generation();
-            
+
+            // Forcer la mise à jour de l'état immédiatement
+            force_unlock_ui();
+
+            // Marquer le message AI actuel comme annulé
+            if (current_ai_message != null) {
+                current_ai_message.content = "⏹️ Génération annulée par l'utilisateur";
+                current_ai_message.update_content();
+            }
+
+            show_toast("⏹️ Génération annulée");
+
+            // Triple sécurité pour s'assurer que l'interface est débloquée
+            Timeout.add(100, () => {
+                force_unlock_ui();
+                return false;
+            });
+
+            Timeout.add(500, () => {
+                force_unlock_ui();
+                return false;
+            });
+
+            Timeout.add(1000, () => {
+                force_unlock_ui();
+                return false;
+            });
+        }
+
+        /**
+         * Force le débloquage de l'interface utilisateur
+         */
+        private void force_unlock_ui() {
             is_processing = false;
-            status_label.set_text("Génération annulée");
+            status_label.set_text("Prêt");
             progress_bar.set_visible(false);
             cancel_generation_button.set_visible(false);
             send_button.set_sensitive(true);
             message_entry.set_sensitive(true);
-            
-            show_toast("⏹️ Génération annulée");
+
+            // Nettoyer les références
+            current_ai_message = null;
+            current_ai_bubble = null;
         }
     }
 }

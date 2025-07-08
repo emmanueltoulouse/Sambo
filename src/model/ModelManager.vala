@@ -43,19 +43,16 @@ namespace Sambo {
          */
         private void init_backend() {
             if (!is_backend_initialized) {
-                stderr.printf("🔧 MODELMANAGER: Initialisation du backend llama.cpp...\n");
                 try {
                     // Tentative d'initialisation réelle du backend llama.cpp via wrapper
                     bool success = Llama.backend_init();
                     if (success) {
                         is_backend_initialized = true;
                         is_simulation_mode = false;
-                        stderr.printf("✅ MODELMANAGER: Backend llama.cpp initialisé avec succès\n");
                     } else {
                         throw new IOError.NOT_FOUND("Backend llama.cpp non disponible");
                     }
                 } catch (Error e) {
-                    stderr.printf("⚠️ MODELMANAGER: llama.cpp non disponible, mode simulation activé: %s\n", e.message);
                     is_simulation_mode = true;
                     is_backend_initialized = false;
                 }
@@ -79,8 +76,6 @@ namespace Sambo {
             // Libérer le modèle précédent s'il existe
             unload_current_model();
 
-            stderr.printf("📂 MODELMANAGER: Chargement du modèle : %s\n", model_path);
-
             // Toujours tenter de charger via le wrapper C (qui gère le mode simulation)
             try {
                 // Tentative de chargement du modèle via wrapper
@@ -95,12 +90,6 @@ namespace Sambo {
                 is_model_loaded = true;
 
                 string model_name = Path.get_basename(model_path);
-                if (is_simulation_mode) {
-                    print("Modèle chargé avec succès en simulation : %s\n", model_name);
-                } else {
-                    print("Modèle chargé avec succès : %s\n", model_name);
-                }
-
                 model_loaded(model_path, model_name);
                 return true;
 
@@ -115,8 +104,6 @@ namespace Sambo {
          * Charge un modèle en mode simulation (pour les tests sans llama.cpp)
          */
         private bool load_model_simulation(string model_path) {
-            print("Mode simulation : chargement simulé du modèle %s\n", model_path);
-
             // Simuler un délai de chargement
             Thread.usleep(500000); // 0.5 seconde
 
@@ -137,8 +124,6 @@ namespace Sambo {
                 is_model_loaded = true;
 
                 string model_name = Path.get_basename(model_path);
-                print("Modèle simulé chargé avec succès : %s\n", model_name);
-
                 model_loaded(model_path, model_name);
                 return true;
 
@@ -154,8 +139,6 @@ namespace Sambo {
          */
         public void unload_current_model() {
             if (is_model_loaded) {
-                print("Déchargement du modèle actuel...\n");
-
                 if (!is_simulation_mode) {
                     // Libération des ressources llama.cpp via wrapper
                     Llama.unload_model();
@@ -165,7 +148,6 @@ namespace Sambo {
                 is_model_loaded = false;
 
                 model_unloaded();
-                print("Modèle déchargé\n");
             }
         }
 
@@ -212,7 +194,6 @@ namespace Sambo {
          */
         public string? generate_response(string prompt, Llama.SamplingParams params, owned GenerationCallback? callback = null) {
             if (!is_model_loaded) {
-                stderr.printf("❌ MODELMANAGER: Aucun modèle chargé pour la génération\n");
                 return null;
             }
 
@@ -235,7 +216,7 @@ namespace Sambo {
                 // Nettoyer la référence du thread une fois terminé
                 current_generation_thread = null;
             });
-            
+
             return null; // La réponse sera fournie via le callback
         }
 
@@ -243,10 +224,11 @@ namespace Sambo {
          * Génération asynchrone pour éviter de bloquer l'interface utilisateur
          */
         private async void generate_response_async(string prompt, Llama.SamplingParams params, owned GenerationCallback? callback) {
-            // Créer un thread pour la génération
+            // Créer un thread pour la génération avec timeout de sécurité
+            var start_time = get_monotonic_time();
+            var timeout_microseconds = 30000000; // 30 secondes timeout
+
             current_generation_thread = new Thread<void*>("ai_generation", () => {
-                stderr.printf("Démarrage de la génération avec llama.cpp...\n");
-                
                 // Vérifier l'annulation avant de commencer
                 if (is_generation_cancelled) {
                     Idle.add(() => {
@@ -257,38 +239,46 @@ namespace Sambo {
                     });
                     return null;
                 }
-                
-                // Estimation approximative du nombre de tokens (1 token ≈ 4 caractères)
-                var estimated_tokens = prompt.length / 4;
-                stderr.printf("Prompt estimé : %d tokens\n", estimated_tokens);
-                
-                // Vérifier l'annulation avant la génération
-                if (is_generation_cancelled) {
+
+                string? response = null;
+                bool generation_successful = false;
+
+                try {
+                    // Génération réelle via llama.cpp
+                    response = Llama.generate_simple(prompt, &params);
+
+                    // Vérifier l'annulation après la génération
+                    if (is_generation_cancelled) {
+                        Idle.add(() => {
+                            if (callback != null) {
+                                callback("⏹️ Génération annulée", true);
+                            }
+                            return false;
+                        });
+                        return null;
+                    }
+
+                    generation_successful = true;
+
+                } catch (Error e) {
+                    stderr.printf("❌ MODELMANAGER: Erreur lors de la génération: %s\n", e.message);
+                    generation_successful = false;
+                }
+
+                // Vérifier le timeout
+                var elapsed_time = get_monotonic_time() - start_time;
+                if (elapsed_time > timeout_microseconds) {
                     Idle.add(() => {
                         if (callback != null) {
-                            callback("⏹️ Génération annulée", true);
+                            callback("⏱️ Timeout de génération atteint", true);
                         }
                         return false;
                     });
                     return null;
                 }
-                
-                // Génération réelle via llama.cpp
-                string? response = Llama.generate_simple(prompt, &params);
-                
-                // Vérifier l'annulation après la génération
-                if (is_generation_cancelled) {
-                    Idle.add(() => {
-                        if (callback != null) {
-                            callback("⏹️ Génération annulée", true);
-                        }
-                        return false;
-                    });
-                    return null;
-                }
-                
-                if (response != null && response.length > 0) {
-                    stderr.printf("Génération terminée avec succès\n");
+
+                // Traiter le résultat
+                if (generation_successful && response != null && response.length > 0) {
                     // Appeler le callback dans le thread principal
                     Idle.add(() => {
                         if (callback != null) {
@@ -297,7 +287,6 @@ namespace Sambo {
                         return false;
                     });
                 } else {
-                    stderr.printf("❌ MODELMANAGER: Génération échouée ou réponse vide\n");
                     Idle.add(() => {
                         if (callback != null) {
                             callback("❌ Erreur lors de la génération", true);
@@ -305,12 +294,41 @@ namespace Sambo {
                         return false;
                     });
                 }
-                
+
                 return null;
             });
-            
-            // Attendre la fin du thread de manière asynchrone
-            yield;
+
+            // Surveillance du thread avec timeout et kill forcé
+            Timeout.add_seconds(35, () => {
+                if (current_generation_thread != null && is_generating()) {
+                    // Forcer l'annulation
+                    is_generation_cancelled = true;
+
+                    // Tenter d'arrêter le backend
+                    if (!is_simulation_mode) {
+                        Llama.stop_generation();
+
+                        // Forcer le nettoyage du modèle
+                        try {
+                            string current_model = current_model_path;
+                            Llama.unload_model();
+                            Thread.usleep(200000); // 200ms
+                            if (current_model != "") {
+                                Llama.load_model(current_model);
+                            }
+                        } catch (Error e) {
+                            stderr.printf("⚠️ MODELMANAGER: Erreur lors du nettoyage forcé: %s\n", e.message);
+                        }
+                    }
+
+                    // Marquer le thread comme terminé
+                    current_generation_thread = null;
+
+                    // Émettre le signal d'annulation
+                    generation_cancelled.emit();
+                }
+                return false; // Ne pas répéter
+            });
         }
 
         /**
@@ -329,38 +347,81 @@ Votre message : "%s"
 
 Cette réponse est générée en mode simulation car llama.cpp n'est pas disponible ou aucun modèle n'est chargé.
 """.printf(
-                get_current_model_name(), 
-                params.temperature, 
-                params.top_p, 
-                params.top_k, 
+                get_current_model_name(),
+                params.temperature,
+                params.top_p,
+                params.top_k,
                 params.max_tokens,
                 prompt.length > 100 ? prompt[0:100] + "..." : prompt
             );
 
             if (callback != null) {
-                // Simuler le streaming progressif
+                // Simuler le streaming progressif avec vérification d'annulation
                 string[] words = response.split(" ");
                 string partial = "";
-                
+
                 foreach (string word in words) {
+                    // Vérifier l'annulation à chaque mot
+                    if (is_generation_cancelled) {
+                        callback("⏹️ Génération annulée", true);
+                        return "⏹️ Génération annulée";
+                    }
+
                     partial += word + " ";
                     callback(partial, false);
                     Thread.usleep(50000); // 50ms de délai pour simuler le streaming
                 }
-                
+
+                // Vérification finale d'annulation
+                if (is_generation_cancelled) {
+                    callback("⏹️ Génération annulée", true);
+                    return "⏹️ Génération annulée";
+                }
+
                 callback(response, true); // Signal de fin
             }
 
             return response;
         }
-
+        
         /**
          * Annule la génération en cours
          */
         public void cancel_generation() {
             is_generation_cancelled = true;
+            
+            // Arrêter la génération llama.cpp si elle est en cours
+            if (!is_simulation_mode) {
+                Llama.stop_generation();
+                
+                // Forcer le nettoyage du modèle et recharger pour s'assurer que le processus s'arrête
+                try {
+                    string current_model = current_model_path;
+                    Llama.unload_model();
+                    Thread.usleep(100000); // 100ms
+                    if (current_model != "") {
+                        Llama.load_model(current_model);
+                    }
+                } catch (Error e) {
+                    stderr.printf("⚠️ MODELMANAGER: Erreur lors du rechargement: %s\n", e.message);
+                }
+                
+                // En cas d'urgence, utiliser le script de nettoyage
+                Timeout.add(2000, () => {
+                    try {
+                        string script_path = Path.build_filename(Environment.get_current_dir(), "scripts", "kill_llama.sh");
+                        Process.spawn_command_line_sync(script_path);
+                    } catch (Error e) {
+                        stderr.printf("⚠️ MODELMANAGER: Erreur lors du nettoyage d'urgence: %s\n", e.message);
+                    }
+                    return false;
+                });
+            }
+            
+            // Marquer le thread comme terminé
+            current_generation_thread = null;
+            
             generation_cancelled.emit();
-            stderr.printf("🛑 MODELMANAGER: Génération annulée par l'utilisateur\n");
         }
 
         /**

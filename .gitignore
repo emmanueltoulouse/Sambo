@@ -30,6 +30,13 @@ sambo
 # Log files
 *.log
 
+# Configuration personnelle et données sensibles
+sambo.log
+config.ini
+*.conf
+.env
+.env.local
+
 # Temporary files
 temp/
 *.tmp

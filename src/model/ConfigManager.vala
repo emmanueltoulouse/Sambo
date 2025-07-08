@@ -57,7 +57,6 @@ namespace Sambo {
             // Méthode pour charger la configuration depuis le fichier INI
             try {
                 key_file.load_from_file(config_path, KeyFileFlags.KEEP_COMMENTS);
-                print("Configuration chargée depuis %s\n", config_path);
 
                 // Charger les profils après avoir chargé la configuration
                 load_profiles();
@@ -76,7 +75,6 @@ namespace Sambo {
             try {
                 string data = key_file.to_data();
                 FileUtils.set_contents(config_path, data);
-                print("Configuration sauvegardée dans %s\n", config_path);
                 config_changed.emit();
             } catch (Error e) {
                 warning("Erreur lors de la sauvegarde de la configuration: %s", e.message);
@@ -199,8 +197,6 @@ namespace Sambo {
             // Définir l'état d'erreur dans le nœud racine
             root.error_message = "";
 
-            print("Répertoire des modèles configuré : %s\n", models_dir);
-
             // Vérifier si un répertoire est configuré
             if (models_dir == "") {
                 root.error_message = "AUCUN_REPERTOIRE_CONFIGURE";
@@ -239,7 +235,6 @@ namespace Sambo {
                 return root;
             }
 
-            print("Arborescence des modèles construite avec %d éléments\n", root.children.size);
             return root;
         }
 
@@ -288,8 +283,6 @@ namespace Sambo {
                     // Créer un nœud fichier
                     var file_node = new ModelNode(clean_name, full_path, true, size_str);
                     parent_node.children.add(file_node);
-
-                    print("Modèle trouvé : %s (taille: %s, chemin: %s)\n", clean_name, size_str, full_path);
                 }
             }
         }
@@ -378,7 +371,6 @@ namespace Sambo {
                 selected_profile_id = get_string("Profiles", "selected_profile", "");
 
                 profiles_loaded = true;
-                print("Profils chargés: %d profils trouvés\n", profiles_cache.size);
 
             } catch (Error e) {
                 warning("Erreur lors du chargement des profils: %s", e.message);
@@ -450,7 +442,6 @@ namespace Sambo {
             save();
 
             profiles_changed.emit();
-            print("Profil sauvegardé: %s\n", profile.title);
         }
 
         /**
@@ -479,7 +470,6 @@ namespace Sambo {
                 save();
                 profiles_changed.emit();
 
-                print("Profil supprimé: %s\n", profile_id);
                 return true;
 
             } catch (Error e) {
@@ -537,7 +527,6 @@ namespace Sambo {
             save();
 
             profiles_changed.emit();
-            print("Profil sélectionné: %s\n", profile_id);
         }
 
         /**
@@ -549,7 +538,6 @@ namespace Sambo {
             save();
 
             profiles_changed.emit();
-            print("Aucun profil sélectionné\n");
         }
 
         /**
@@ -591,13 +579,11 @@ namespace Sambo {
                 save_profile(default_profile);
                 select_profile(default_profile.id);
 
-                print("Profil par défaut créé et sélectionné\n");
-            } else if (selected_profile_id == null || selected_profile_id == "" || 
+            } else if (selected_profile_id == null || selected_profile_id == "" ||
                        !profiles_cache.has_key(selected_profile_id)) {
                 // S'assurer qu'un profil est sélectionné si des profils existent
                 var first_profile = profiles_cache.values.to_array()[0];
                 select_profile(first_profile.id);
-                print(@"Profil sélectionné automatiquement : $(first_profile.title)\n");
             }
         }
 

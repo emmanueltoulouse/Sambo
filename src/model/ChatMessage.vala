@@ -39,6 +39,14 @@ namespace Sambo {
         public void append_text(string text) {
             content += text;
         }
+
+        /**
+         * Met à jour le contenu du message et émet un signal de changement
+         */
+        public void update_content() {
+            // Émet le signal de changement de propriété pour permettre la mise à jour de l'UI
+            notify_property("content");
+        }
     }
 
     /**

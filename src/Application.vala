@@ -35,46 +35,14 @@ namespace Sambo {
                 flags: ApplicationFlags.FLAGS_NONE
             );
 
-            // Traces détaillées sur la résolution d'icône dash/barre
-            var theme = Gtk.IconTheme.get_for_display(Gdk.Display.get_default());
-            stdout.printf("[TRACE] Thème GTK courant: %s\n", theme.get_theme_name());
-            string[] search_paths = theme.get_search_path();
-            foreach (var p in search_paths) {
-                stdout.printf("[TRACE] Chemin de recherche du thème: %s\n", p);
-            }
-            stdout.printf("[TRACE] Recherche de l'icône dash dans les chemins standards...\n");
-            string[] icon_paths = {
-                "./data/icons/hicolor/scalable/apps/com.cabineteto.Sambo.png",
-                "/usr/share/icons/hicolor/scalable/apps/com.cabineteto.Sambo.png",
-                "/usr/local/share/icons/hicolor/scalable/apps/com.cabineteto.Sambo.png",
-                Environment.get_home_dir() + "/.local/share/icons/hicolor/scalable/apps/com.cabineteto.Sambo.png"
-            };
-            foreach (var path in icon_paths) {
-                if (FileUtils.test(path, FileTest.EXISTS)) {
-                    stdout.printf("[TRACE] Icône dash trouvée: %s\n", path);
-                } else {
-                    stdout.printf("[TRACE] Icône dash absente: %s\n", path);
-                }
-            }
-            // Test de lookup effectif dans le thème GTK (GTK4)
-            var info = theme.lookup_icon("com.cabineteto.Sambo", null, 64, 1, Gtk.TextDirection.NONE, 0);
-            if (info != null) {
-                stdout.printf("[TRACE] lookup_icon: trouvé dans le thème (type: %s)\n", info.get_type().name());
-            } else {
-                stdout.printf("[TRACE] lookup_icon: NON trouvé dans le thème\n");
-            }
-
             // Vérifier s'il y a une icône personnalisée dans le home directory
             string home_icon = Path.build_filename(Environment.get_home_dir(), "com.cabineteto.Sambo.png");
             if (FileUtils.test(home_icon, FileTest.EXISTS)) {
                 try {
                     custom_icon = Gdk.Texture.from_file(File.new_for_path(home_icon));
-                    stdout.printf("[TRACE] Application: custom_icon chargée depuis %s\n", home_icon);
                 } catch (Error e) {
-                    stdout.printf("[TRACE] Application: Erreur chargement custom_icon: %s\n", e.message);
+                    // Erreur silencieuse
                 }
-            } else {
-                stdout.printf("[TRACE] Application: custom_icon NON trouvée dans %s\n", home_icon);
             }
 
             // S'assurer que les ressources sont correctement initialisées
@@ -127,7 +95,6 @@ namespace Sambo {
                 // Charger le CSS moderne pour les profils
                 load_profile_css();
 
-                print("✅ CSS chargé avec succès\n");
             } catch (Error e) {
                 stderr.printf("❌ Erreur lors du chargement du CSS : %s\n", e.message);
             }
@@ -144,7 +111,6 @@ namespace Sambo {
                     Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 1
                 );
 
-                print("✨ CSS simple des profils chargé avec succès\n");
             } catch (Error e) {
                 stderr.printf("⚠️ Erreur lors du chargement du CSS des profils : %s\n", e.message);
                 // Continuer sans le CSS simple si le chargement échoue

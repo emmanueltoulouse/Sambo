@@ -1,114 +1,246 @@
-# Sambo
+# 🤖 Sambo - AI-Powered Text Editor
 
-![Icône Sambo](Sambo.png)
+<div align="center">
 
-## Description
+![Sambo Logo](Sambo.png)
 
-Sambo est un éditeur de texte avancé moderne développé avec GTK4 et Vala. Il offre une interface utilisateur moderne et intuitive pour l'édition de texte avec des fonctionnalités avancées.
+[![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![Built with GTK4](https://img.shields.io/badge/Built%20with-GTK4-green.svg)](https://gtk.org/)
+[![Written in Vala](https://img.shields.io/badge/Written%20in-Vala-purple.svg)](https://vala.dev/)
 
-## Fonctionnalités
+*Un éditeur de texte moderne avec intelligence artificielle intégrée*
 
-- ✨ Interface moderne avec GTK4
-- 📝 Éditeur de texte avancé avec coloration syntaxique
-- 🔍 Explorateur de fichiers intégré
-- 💬 Interface de communication intégrée
-- ⚙️ Fenêtre de préférences personnalisable
-- 🎨 Thèmes et styles personnalisables
-- 🌐 Support de l'internationalisation
+[🚀 Installation](#installation) • [📖 Documentation](#utilisation) • [🤝 Contribuer](#développement) • [📝 Licence](#licence)
 
-## Installation
+</div>
+
+## ✨ Fonctionnalités
+
+🎯 **Interface Moderne**
+- Interface utilisateur élégante avec GTK4/libadwaita
+- Design adaptatif et thèmes personnalisables
+- Navigation intuitive avec sidebar et onglets
+
+🤖 **Intelligence Artificielle**
+- Integration avec llama.cpp pour l'inférence locale
+- Support des modèles GGUF, BIN et SafeTensors
+- Profils d'inférence personnalisables
+- Chat interactif avec l'IA
+- Génération de texte en streaming
+
+📝 **Édition Avancée**  
+- Éditeur de texte avec coloration syntaxique
+- Support multi-formats (Markdown, code, etc.)
+- Explorateur de fichiers intégré
+- Gestion des projets
+
+� **Extensibilité**
+- Architecture modulaire MVC
+- Configuration flexible via INI
+- Support des extensions futures
+- API de téléchargement de modèles Hugging Face
+
+## 🖼️ Captures d'écran
+
+<!-- TODO: Ajouter des captures d'écran -->
+*Screenshots à venir*
+
+## 🚀 Installation
 
 ### Prérequis
 
-- Vala (`valac`)
-- Meson
-- GTK4
-- GLib
+Assurez-vous d'avoir les dépendances suivantes installées :
 
-### Compilation
-
-1. Clonez le repository :
 ```bash
-git clone <url-du-repository>
+# Ubuntu/Debian
+sudo apt update
+sudo apt install valac meson ninja-build libgtk-4-dev libadwaita-1-dev libgee-0.8-dev
+
+# Fedora
+sudo dnf install vala meson ninja-build gtk4-devel libadwaita-devel libgee-devel
+
+# Arch Linux
+sudo pacman -S vala meson ninja gtk4 libadwaita libgee
+```
+
+### 📦 Installation depuis les sources
+
+1. **Clonez le repository :**
+```bash
+git clone https://github.com/votre-username/Sambo.git
 cd Sambo
 ```
 
-2. Configurez le projet :
+2. **Configurez et compilez :**
 ```bash
 meson setup build
-```
-
-3. Compilez l'application :
-```bash
 meson compile -C build
 ```
 
-4. Lancez l'application :
+3. **Lancez l'application :**
 ```bash
 ./build/Sambo
 ```
 
-## Utilisation
+### 🔧 Installation pour le développement
 
-### Interface principale
+```bash
+# Installation des dépendances de développement
+sudo apt install uncrustify  # pour le formatage de code
 
-L'application propose une interface moderne avec :
-- Une barre d'en-tête avec les actions principales
-- Un éditeur de texte central
-- Une barre latérale avec l'explorateur de fichiers
-- Une vue de communication pour les interactions
+# Tâches disponibles (VS Code)
+# - build: Compile le projet
+# - run: Lance l'application  
+# - Compil et Execute: Compile et lance
+# - clean: Nettoie le build
+# - lint: Vérifie le style du code
+```
 
-### Workflow recommandé
+## 📖 Utilisation
 
-1. **Ouverture de fichiers** : Utilisez l'explorateur de fichiers ou les raccourcis clavier
-2. **Édition** : L'éditeur principal supporte la coloration syntaxique
-3. **Communication** : Utilisez la vue de communication pour les interactions avec l'IA
-4. **Préférences** : Personnalisez l'application via le menu des préférences
+### 🎯 Démarrage rapide
 
-## Architecture
+1. **Configuration initiale :**
+   - Lancez Sambo
+   - Allez dans Préférences → IA
+   - Configurez le répertoire des modèles
+   - Téléchargez un modèle compatible (GGUF recommandé)
 
-Le projet suit une architecture MVC (Model-View-Controller) :
+2. **Utilisation de l'IA :**
+   - Créez un profil d'inférence personnalisé
+   - Chargez un modèle depuis le sélecteur
+   - Commencez à chatter avec l'IA
+   - Ajustez les paramètres selon vos besoins
+
+### 🔧 Configuration avancée
+
+#### Profils d'inférence
+Les profils permettent de sauvegarder des configurations spécifiques :
+- **Température** : Contrôle la créativité (0.1 = conservateur, 1.0 = créatif)
+- **Top-P** : Filtrage des tokens par probabilité cumulative
+- **Top-K** : Nombre de tokens candidats considérés
+- **Max Tokens** : Longueur maximale de la réponse
+
+#### Modèles supportés
+- **GGUF** : Format recommandé pour llama.cpp
+- **BIN** : Modèles binaires legacy
+- **SafeTensors** : Format sécurisé
+
+### 🗂️ Interface
+
+**Zone principale :**
+- Éditeur de texte avec coloration syntaxique
+- Chat IA avec streaming en temps réel
+- Explorateur de fichiers intégré
+
+**Barres d'outils :**
+- Actions rapides (nouveau, ouvrir, sauvegarder)
+- Contrôles IA (modèle, profil, génération)
+- Paramètres et préférences
+
+## 🏗️ Architecture
+
+Sambo suit une architecture MVC (Model-View-Controller) moderne :
 
 ```
 src/
-├── Application.vala          # Point d'entrée de l'application
-├── controller/              # Contrôleurs
-├── model/                   # Modèles de données
-├── view/                    # Vues et interfaces utilisateur
-└── ...
+├── Application.vala              # Point d'entrée principal
+├── controller/                   # Logique de contrôle
+│   ├── ApplicationController.vala
+│   └── ...
+├── model/                       # Modèles de données
+│   ├── ModelManager.vala        # Gestion des modèles IA
+│   ├── ConfigManager.vala       # Configuration
+│   ├── InferenceProfile.vala    # Profils d'inférence
+│   └── ...
+├── view/                        # Interface utilisateur
+│   ├── widgets/                 # Composants UI
+│   ├── windows/                 # Fenêtres
+│   └── ...
+└── vapi/                        # Bindings C
+    └── llama.vapi              # Interface llama.cpp
 ```
 
-## Développement
+### 🔌 Composants clés
+
+- **ModelManager** : Gestion des modèles IA et inférence
+- **ConfigManager** : Persistence des paramètres et profils
+- **ChatView** : Interface de conversation avec l'IA
+- **ProfileManager** : Gestion des profils d'inférence
+
+## 🛠️ Développement
 
 ### Structure du projet
 
-- `src/` - Code source Vala
-- `data/` - Ressources (icônes, CSS, etc.)
-- `po/` - Fichiers de traduction
-- `docs/` - Documentation
-- `scripts/` - Scripts utilitaires
+```
+Sambo/
+├── src/                    # Code source Vala
+├── data/                   # Ressources (CSS, icônes, schémas)
+├── po/                     # Fichiers de traduction
+├── docs/                   # Documentation technique
+├── scripts/                # Scripts utilitaires
+├── vapi/                   # Bindings pour bibliothèques C
+└── subprojects/            # Dépendances externes
+```
 
-### Tâches disponibles
+### 🧪 Tests et qualité
 
-Le projet inclut plusieurs tâches VS Code configurées :
+```bash
+# Vérification du style de code
+meson compile -C build && find src -name '*.vala' | xargs uncrustify -c .uncrustify.cfg --check
 
-- **build** : Compile le projet
-- **run** : Lance l'application
-- **Compil et Execute** : Compile et lance en une fois
-- **clean** : Nettoie le dossier de build
-- **lint** : Vérifie le style du code
+# Nettoyage du projet
+rm -rf build && meson setup build
 
-## Licence
+# Compilation en mode debug
+meson setup build --buildtype=debug
+```
 
-© 2023 Cabinet ETO - Licence GPL 3.0
+### 🤝 Contribuer
 
-## Contact
+1. **Fork** le projet
+2. **Créez** une branche pour votre fonctionnalité (`git checkout -b feature/amazing-feature`)
+3. **Committez** vos changements (`git commit -m 'Add amazing feature'`)
+4. **Pushez** vers la branche (`git push origin feature/amazing-feature`)
+5. **Ouvrez** une Pull Request
 
-- Site Web : [https://cabineteto.com](https://cabineteto.com)
-- Développé par Cabinet ETO
+#### 📝 Guidelines de contribution
+
+- Suivez le style de code existant (Uncrustify)
+- Documentez les nouvelles fonctionnalités
+- Testez vos modifications
+- Mettez à jour la documentation si nécessaire
+
+## 🔗 Liens utiles
+
+- 📚 [Documentation complète](docs/)
+- 🐛 [Signaler un bug](https://github.com/votre-username/Sambo/issues)
+- 💡 [Demander une fonctionnalité](https://github.com/votre-username/Sambo/issues)
+- 🗨️ [Discussions](https://github.com/votre-username/Sambo/discussions)
+
+## 📝 Licence
+
+Ce projet est sous licence GPL-3.0. Voir le fichier [LICENSE](LICENSE) pour plus de détails.
+
+## 👥 Équipe
+
+**Développé par Cabinet ETO**
+- 🌐 Site Web : [https://cabineteto.com](https://cabineteto.com)
+- 📧 Contact : [contact@cabineteto.com](mailto:contact@cabineteto.com)
+
+## 🙏 Remerciements
+
+- [GTK Project](https://gtk.org/) pour le toolkit d'interface
+- [llama.cpp](https://github.com/ggerganov/llama.cpp) pour l'inférence IA
+- [Vala](https://vala.dev/) pour le langage de programmation
+- La communauté open source pour les contributions
 
 ---
 
-![Icône Sambo](Sambo.png)
+<div align="center">
 
-*Sambo - Éditeur de texte avancé pour une productivité moderne*
+**⭐ Si ce projet vous plaît, n'hésitez pas à lui donner une étoile !**
+
+*Fait avec ❤️ par [Cabinet ETO](https://cabineteto.com)*
+
+</div>
