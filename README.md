@@ -28,7 +28,7 @@
 - Chat interactif avec l'IA
 - Génération de texte en streaming
 
-📝 **Édition Avancée**  
+📝 **Édition Avancée**
 - Éditeur de texte avec coloration syntaxique
 - Support multi-formats (Markdown, code, etc.)
 - Explorateur de fichiers intégré
@@ -90,7 +90,7 @@ sudo apt install uncrustify  # pour le formatage de code
 
 # Tâches disponibles (VS Code)
 # - build: Compile le projet
-# - run: Lance l'application  
+# - run: Lance l'application
 # - Compil et Execute: Compile et lance
 # - clean: Nettoie le build
 # - lint: Vérifie le style du code

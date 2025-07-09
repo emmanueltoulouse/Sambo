@@ -28,6 +28,14 @@
     background-color: #ffffff;
 }
 
+/* Debug : Style pour identifier visuellement le conteneur de messages */
+.chat-messages-container {
+    background-color: rgba(0, 255, 0, 0.1); /* Vert transparent pour debug */
+    min-height: 200px;
+    padding: 10px;
+    border: 2px dashed rgba(0, 255, 0, 0.3); /* Bordure verte en pointillés */
+}
+
 .chat-toolbar {
     padding: 8px 12px;
     border-bottom: 1px solid rgba(0, 0, 0, 0.08);
@@ -111,11 +119,14 @@
     padding: 4px;
     margin: 6px 0;
     border-radius: 8px;
+    min-height: 50px; /* Force une hauteur minimale */
+    background-color: rgba(255, 0, 0, 0.1); /* Debug : fond rouge transparent */
 }
 
 .bubble-content {
     padding: 8px 12px;
     border-radius: 18px;
+    min-height: 30px; /* Force une hauteur minimale */
 }
 
 .user-bubble .bubble-content {
@@ -130,6 +141,9 @@
 
 .bubble-text {
     margin: 2px 0;
+    min-height: 20px; /* Force une hauteur minimale pour le texte */
+    font-size: 14px; /* Force une taille de police visible */
+    font-weight: normal;
 }
 
 .bubble-time {

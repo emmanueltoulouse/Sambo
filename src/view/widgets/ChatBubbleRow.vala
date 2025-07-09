@@ -24,13 +24,16 @@ namespace Sambo {
         public ChatBubbleRow(ChatMessage message) {
             Object(orientation: Orientation.VERTICAL, spacing: 3);
 
+            stderr.printf("🟡 CHATBUBBLEROW: Début construction\n");
 
             // Vérification de sécurité
             if (message == null) {
+                stderr.printf("❌ CHATBUBBLEROW: Message NULL passé au constructeur\n");
                 warning("ChatBubbleRow: Message NULL passé au constructeur");
                 return;
             }
 
+            stderr.printf("🟡 CHATBUBBLEROW: Message reçu: '%s'\n", message.content ?? "(vide)");
 
             this.message = message;
 
@@ -50,18 +53,12 @@ namespace Sambo {
 
             // Conteneur pour le contenu avec un style de bulle
             var bubble_box = new Box(Orientation.VERTICAL, 3);
-            if (bubble_box == null) {
-                warning("ChatBubbleRow: Impossible de créer bubble_box");
-                return;
-            }
+            stderr.printf("🟡 CHATBUBBLEROW: bubble_box créé\n");
             bubble_box.add_css_class("bubble-content");
 
             // Créer le libellé pour le contenu du message
             content_label = new Label(message.content ?? "");
-            if (content_label == null) {
-                warning("ChatBubbleRow: Impossible de créer content_label");
-                return;
-            }
+            stderr.printf("🟡 CHATBUBBLEROW: content_label créé avec: '%s'\n", message.content ?? "(vide)");
             content_label.wrap = true;
             content_label.wrap_mode = Pango.WrapMode.WORD_CHAR;
             content_label.xalign = 0;
@@ -70,25 +67,20 @@ namespace Sambo {
 
             // Créer le libellé pour l'horodatage
             time_label = new Label(message.get_formatted_time());
-            if (time_label == null) {
-                warning("ChatBubbleRow: Impossible de créer time_label");
-                return;
-            }
+            stderr.printf("🟡 CHATBUBBLEROW: time_label créé\n");
             time_label.add_css_class("bubble-time");
             time_label.set_halign(is_user ? Align.END : Align.START);
 
             // Ajouter les libellés au conteneur de bulle
             bubble_box.append(content_label);
             bubble_box.append(time_label);
+            stderr.printf("🟡 CHATBUBBLEROW: Labels ajoutés à bubble_box\n");
 
             // Créer un bouton pour transférer le contenu vers l'éditeur
             // Le bouton n'est visible que pour les réponses de l'IA
             if (!is_user) {
                 send_to_editor_button = new Button();
-                if (send_to_editor_button == null) {
-                    warning("ChatBubbleRow: Impossible de créer send_to_editor_button");
-                    return;
-                }
+                stderr.printf("🟡 CHATBUBBLEROW: Bouton éditeur créé\n");
                 send_to_editor_button.set_icon_name("document-edit-symbolic");
                 send_to_editor_button.add_css_class("flat");
                 send_to_editor_button.set_tooltip_text(_("Transférer vers l'éditeur"));
@@ -97,17 +89,16 @@ namespace Sambo {
                 send_to_editor_button.clicked.connect(on_send_to_editor);
 
                 var button_box = new Box(Orientation.HORIZONTAL, 0);
-                if (button_box == null) {
-                    warning("ChatBubbleRow: Impossible de créer button_box");
-                    return;
-                }
+                stderr.printf("🟡 CHATBUBBLEROW: button_box créé\n");
                 button_box.set_halign(Align.END);
                 button_box.append(send_to_editor_button);
                 bubble_box.append(button_box);
+                stderr.printf("🟡 CHATBUBBLEROW: Bouton ajouté à bubble_box\n");
             }
 
             // Ajouter la bulle à la boîte principale
             this.append(bubble_box);
+            stderr.printf("✅ CHATBUBBLEROW: Construction terminée - bubble_box ajouté au widget principal\n");
         }
 
         /**
@@ -165,8 +156,15 @@ namespace Sambo {
          * Met à jour le contenu affiché (pour le streaming)
          */
         public void update_content() {
+            stderr.printf("[TRACE][IN] CHATBUBBLEROW: update_content appelé\n");
             if (content_label != null && message != null) {
+                stderr.printf("[TRACE][IN] CHATBUBBLEROW: Mise à jour du contenu: '%s'\n",
+                    message.content.length > 50 ? message.content.substring(0, 50) + "..." : message.content ?? "(vide)");
+                stderr.printf("[TRACE][OUT] CHATBUBBLEROW: Appel content_label.set_text()\n");
                 content_label.set_text(message.content);
+                stderr.printf("[TRACE][OUT] CHATBUBBLEROW: Contenu mis à jour avec succès\n");
+            } else {
+                stderr.printf("[TRACE][IN] CHATBUBBLEROW: ERREUR - content_label ou message est null\n");
             }
         }
     }

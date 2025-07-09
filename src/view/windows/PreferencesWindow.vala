@@ -162,82 +162,6 @@ namespace Sambo {
 
             general_page.add(tips_group);
 
-            // --- Groupe Modèles IA ---
-            var ai_models_group = new Adw.PreferencesGroup();
-            ai_models_group.set_title(_("Modèles IA"));
-            ai_models_group.set_description(_("Configuration des modèles d'intelligence artificielle"));
-
-            // Répertoire de base des modèles
-            var models_dir_row = new Adw.ActionRow();
-            models_dir_row.set_title(_("Répertoire de base des modèles"));
-            models_dir_row.set_subtitle(_("Emplacement où sont stockés les modèles IA téléchargés"));
-
-            var current_models_dir = config.get_string("AI", "models_base_directory",
-                Path.build_filename(Environment.get_home_dir(), ".local", "share", "sambo", "models"));
-
-            var models_dir_button = new Gtk.Button.with_label(Path.get_basename(current_models_dir));
-            models_dir_button.set_valign(Gtk.Align.CENTER);
-            models_dir_button.clicked.connect(() => {
-                var file_dialog = new Gtk.FileDialog();
-                file_dialog.set_modal(true);
-                file_dialog.set_title(_("Choisir le répertoire des modèles"));
-
-                file_dialog.select_folder.begin(this, null, (obj, res) => {
-                    try {
-                        var file = file_dialog.select_folder.end(res);
-                        if (file != null) {
-                            var path = file.get_path();
-                            config.set_string("AI", "models_base_directory", path);
-                            models_dir_button.set_label(Path.get_basename(path));
-                        }
-                    } catch (Error e) {
-                        warning("Erreur lors de la sélection du répertoire: %s", e.message);
-                    }
-                });
-            });
-            models_dir_row.add_suffix(models_dir_button);
-            ai_models_group.add(models_dir_row);
-
-            // Clé API HuggingFace
-            var hf_api_row = new Adw.PasswordEntryRow();
-            hf_api_row.set_title(_("Clé API HuggingFace"));
-            hf_api_row.set_text(config.get_string("AI", "huggingface_token", ""));
-
-            // Bouton de validation de la clé
-            var validate_button = new Gtk.Button.from_icon_name("network-wireless-symbolic");
-            validate_button.set_valign(Gtk.Align.CENTER);
-            validate_button.set_tooltip_text(_("Valider la clé API"));
-            validate_button.add_css_class("flat");
-
-            var status_icon = new Gtk.Image.from_icon_name("dialog-question-symbolic");
-            status_icon.set_valign(Gtk.Align.CENTER);
-            status_icon.set_tooltip_text(_("Statut de la connexion"));
-
-            hf_api_row.add_suffix(validate_button);
-            hf_api_row.add_suffix(status_icon);
-            ai_models_group.add(hf_api_row);
-
-            // Lien vers la création de token
-            var hf_help_row = new Adw.ActionRow();
-            hf_help_row.set_title(_("Obtenir une clé API"));
-            var hf_link_button = new Gtk.LinkButton.with_label("https://huggingface.co/settings/tokens", _("Créer un token sur HuggingFace"));
-            hf_link_button.set_valign(Gtk.Align.CENTER);
-            hf_help_row.add_suffix(hf_link_button);
-            ai_models_group.add(hf_help_row);
-
-            // Nombre de modèles à charger
-            var models_limit_row = new Adw.ActionRow();
-            models_limit_row.set_title(_("Nombre de modèles à charger"));
-            models_limit_row.set_subtitle(_("Nombre maximum de modèles affichés (25-1000)"));
-
-            var models_limit_spin = new Gtk.SpinButton.with_range(25, 1000, 25);
-            models_limit_spin.set_value(config.get_integer("AI", "models_limit", 50));
-            models_limit_spin.set_valign(Gtk.Align.CENTER);
-            models_limit_row.add_suffix(models_limit_spin);
-            ai_models_group.add(models_limit_row);
-
-            general_page.add(ai_models_group);
-
             this.add(general_page);
 
             // Connecter les signaux
@@ -310,49 +234,6 @@ namespace Sambo {
                 config.save();
             });
             */
-
-            // Gestionnaires pour HuggingFace
-            hf_api_row.notify["text"].connect(() => {
-                config.set_string("AI", "huggingface_token", hf_api_row.get_text());
-                config.save();
-                // Reset status when text changes
-                status_icon.set_from_icon_name("dialog-question-symbolic");
-                status_icon.set_tooltip_text(_("Statut de la connexion"));
-            });
-
-            validate_button.clicked.connect(() => {
-                validate_huggingface_token.begin(hf_api_row.get_text(), status_icon);
-            });
-        }
-
-        private async void validate_huggingface_token(string token, Gtk.Image status_icon) {
-            if (token.length == 0) {
-                status_icon.set_from_icon_name("dialog-warning-symbolic");
-                status_icon.set_tooltip_text(_("Aucun token fourni"));
-                return;
-            }
-
-            status_icon.set_from_icon_name("content-loading-symbolic");
-            status_icon.set_tooltip_text(_("Validation en cours..."));
-
-            try {
-                var session = new Soup.Session();
-                var message = new Soup.Message("GET", "https://huggingface.co/api/whoami");
-                message.request_headers.append("Authorization", "Bearer " + token);
-
-                var response = yield session.send_async(message, Priority.DEFAULT, null);
-
-                if (message.status_code == 200) {
-                    status_icon.set_from_icon_name("emblem-ok-symbolic");
-                    status_icon.set_tooltip_text(_("Token valide"));
-                } else {
-                    status_icon.set_from_icon_name("dialog-error-symbolic");
-                    status_icon.set_tooltip_text(_("Token invalide"));
-                }
-            } catch (Error e) {
-                status_icon.set_from_icon_name("dialog-error-symbolic");
-                status_icon.set_tooltip_text(_("Erreur de connexion: %s").printf(e.message));
-            }
         }
 
         private void add_page_editor() {
@@ -674,17 +555,58 @@ namespace Sambo {
             // Clé API HuggingFace
             var api_key_row = new Adw.PasswordEntryRow();
             api_key_row.set_title(_("Clé API HuggingFace (optionnelle)"));
-            api_key_row.set_text(config.get_string("AI", "huggingface_api_key", ""));
+            api_key_row.set_text(config.get_string("AI", "huggingface_token", ""));
+
+            // Bouton de validation de la clé
+            var validate_button = new Gtk.Button.from_icon_name("network-wireless-symbolic");
+            validate_button.set_valign(Gtk.Align.CENTER);
+            validate_button.set_tooltip_text(_("Valider la clé API"));
+            validate_button.add_css_class("flat");
+
+            var status_icon = new Gtk.Image.from_icon_name("dialog-question-symbolic");
+            status_icon.set_valign(Gtk.Align.CENTER);
+            status_icon.set_tooltip_text(_("Statut de la connexion"));
+
+            api_key_row.add_suffix(validate_button);
+            api_key_row.add_suffix(status_icon);
             models_group.add(api_key_row);
+
+            // Lien vers la création de token
+            var hf_help_row = new Adw.ActionRow();
+            hf_help_row.set_title(_("Obtenir une clé API"));
+            var hf_link_button = new Gtk.LinkButton.with_label("https://huggingface.co/settings/tokens", _("Créer un token sur HuggingFace"));
+            hf_link_button.set_valign(Gtk.Align.CENTER);
+            hf_help_row.add_suffix(hf_link_button);
+            models_group.add(hf_help_row);
 
             // Répertoire des modèles
             var models_dir_row = new Adw.ActionRow();
-            models_dir_row.set_title(_("Répertoire des modèles"));
-            models_dir_row.set_subtitle(_("Dossier où seront stockés les modèles téléchargés"));
+            models_dir_row.set_title(_("Répertoire de base des modèles"));
+            models_dir_row.set_subtitle(_("Emplacement où sont stockés les modèles IA téléchargés"));
 
-            var models_dir_button = new Gtk.Button();
-            models_dir_button.set_label(config.get_string("AI", "models_directory", _("Choisir...")));
+            var current_models_dir = config.get_string("AI", "models_base_directory",
+                Path.build_filename(Environment.get_home_dir(), ".local", "share", "sambo", "models"));
+
+            var models_dir_button = new Gtk.Button.with_label(Path.get_basename(current_models_dir));
             models_dir_button.set_valign(Gtk.Align.CENTER);
+            models_dir_button.clicked.connect(() => {
+                var file_dialog = new Gtk.FileDialog();
+                file_dialog.set_modal(true);
+                file_dialog.set_title(_("Choisir le répertoire des modèles"));
+
+                file_dialog.select_folder.begin(this, null, (obj, res) => {
+                    try {
+                        var file = file_dialog.select_folder.end(res);
+                        if (file != null) {
+                            var path = file.get_path();
+                            config.set_string("AI", "models_base_directory", path);
+                            models_dir_button.set_label(Path.get_basename(path));
+                        }
+                    } catch (Error e) {
+                        warning("Erreur lors de la sélection du répertoire: %s", e.message);
+                    }
+                });
+            });
             models_dir_row.add_suffix(models_dir_button);
             models_group.add(models_dir_row);
 
@@ -721,13 +643,49 @@ namespace Sambo {
             concurrent_downloads_row.add_suffix(concurrent_downloads_spin);
             models_group.add(concurrent_downloads_row);
 
+            // Timeout de génération
+            var timeout_row = new Adw.ActionRow();
+            timeout_row.set_title(_("Timeout de génération"));
+            timeout_row.set_subtitle(_("Délai d'attente maximum pour la génération (0 = infini)"));
+
+            var timeout_spin = new Gtk.SpinButton.with_range(0, 300, 5);
+            timeout_spin.set_value(config.get_generation_timeout());
+            timeout_spin.set_valign(Gtk.Align.CENTER);
+            timeout_spin.set_tooltip_text(_("Timeout en secondes (0 pour pas de limite)"));
+            timeout_row.add_suffix(timeout_spin);
+
+            // Label pour afficher "infini" quand c'est 0
+            var timeout_label = new Gtk.Label("");
+            timeout_label.set_valign(Gtk.Align.CENTER);
+            timeout_label.add_css_class("dim-label");
+            timeout_row.add_suffix(timeout_label);
+
+            // Fonction pour mettre à jour le label
+            void update_timeout_label() {
+                int value = (int)timeout_spin.get_value();
+                if (value == 0) {
+                    timeout_label.set_text(_("(infini)"));
+                } else {
+                    timeout_label.set_text(_("%d sec").printf(value));
+                }
+            }
+            update_timeout_label();
+
+            timeout_spin.value_changed.connect(() => {
+                update_timeout_label();
+                config.set_generation_timeout((int)timeout_spin.get_value());
+                config.save();
+            });
+
+            models_group.add(timeout_row);
+
             ai_page.add(models_group);
 
             // --- Connecter les signaux ---
 
             // Signal pour la clé API
             api_key_row.changed.connect(() => {
-                config.set_string("AI", "huggingface_api_key", api_key_row.get_text());
+                config.set_string("AI", "huggingface_token", api_key_row.get_text());
             });
 
             // Signal pour le nombre de modèles
@@ -745,39 +703,7 @@ namespace Sambo {
                 config.set_integer("AI", "max_concurrent_downloads", (int)concurrent_downloads_spin.get_value());
             });
 
-            // Signal pour le bouton de sélection du répertoire des modèles
-            models_dir_button.clicked.connect(() => {
-                select_models_directory(models_dir_button);
-            });
-
             add(ai_page);
-        }
-
-        private void select_models_directory(Gtk.Button button) {
-            var file_dialog = new Gtk.FileDialog();
-            file_dialog.set_title(_("Choisir le répertoire des modèles"));
-            file_dialog.set_modal(true);
-
-            // Configurer pour sélectionner des dossiers seulement
-            file_dialog.select_folder.begin(this, null, (obj, res) => {
-                try {
-                    var folder = file_dialog.select_folder.end(res);
-                    if (folder != null) {
-                        string folder_path = folder.get_path();
-                        if (folder_path != null) {
-                            // Sauvegarder dans la configuration
-                            config.set_string("AI", "models_directory", folder_path);
-
-                            // Mettre à jour le bouton
-                            button.set_label(folder_path);
-
-                            stdout.printf("[TRACE] Répertoire des modèles configuré: %s\n", folder_path);
-                        }
-                    }
-                } catch (Error e) {
-                    stderr.printf("[ERROR] Erreur lors de la sélection du dossier: %s\n", e.message);
-                }
-            });
         }
     }
 }

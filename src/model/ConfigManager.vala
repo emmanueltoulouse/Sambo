@@ -162,6 +162,22 @@ namespace Sambo {
         }
 
         /**
+         * Obtient le timeout de génération en secondes depuis la configuration
+         * @return Le timeout en secondes, 0 pour timeout infini, 30 par défaut
+         */
+        public int get_generation_timeout() {
+            return get_integer("AI", "generation_timeout", 30);
+        }
+
+        /**
+         * Définit le timeout de génération dans la configuration
+         * @param timeout_seconds Le timeout en secondes (0 = infini)
+         */
+        public void set_generation_timeout(int timeout_seconds) {
+            set_integer("AI", "generation_timeout", timeout_seconds);
+        }
+
+        /**
          * Structure pour représenter un nœud dans l'arborescence des modèles
          */
         public class ModelNode : Object {
@@ -569,7 +585,7 @@ namespace Sambo {
             }
 
             if (profiles_cache.size == 0) {
-                // Créer un profil par défaut
+                // Créer un profil par défaut simple
                 var default_profile = InferenceProfile.create_default(
                     InferenceProfile.generate_unique_id(),
                     "Profil par défaut"
@@ -577,7 +593,13 @@ namespace Sambo {
                 default_profile.comment = "Profil par défaut créé automatiquement";
 
                 save_profile(default_profile);
-                select_profile(default_profile.id);
+
+                // Créer un profil optimisé 8B avec paramètres de performance
+                var optimized_profile = create_optimized_8b_profile();
+                save_profile(optimized_profile);
+
+                // Sélectionner le profil optimisé par défaut
+                select_profile(optimized_profile.id);
 
             } else if (selected_profile_id == null || selected_profile_id == "" ||
                        !profiles_cache.has_key(selected_profile_id)) {
@@ -585,6 +607,52 @@ namespace Sambo {
                 var first_profile = profiles_cache.values.to_array()[0];
                 select_profile(first_profile.id);
             }
+        }
+
+        /**
+         * Crée un profil optimisé pour les modèles 8B avec paramètres de performance
+         */
+        private InferenceProfile create_optimized_8b_profile() {
+            var profile = new InferenceProfile(
+                InferenceProfile.generate_unique_id(),
+                "🚀 Profil Optimisé 8B",
+                "Profil haute performance pour modèles Llama-3.2-8B avec paramètres optimisés pour 32GB RAM",
+                """Tu es Sambo, un assistant IA intelligent et bienveillant. Tu réponds de manière claire, concise et utile.
+
+Caractéristiques :
+- Réponds en français de préférence
+- Sois précis et factuel
+- Structure tes réponses avec des listes quand approprié
+- Utilise des emojis avec parcimonie pour améliorer la lisibilité
+- Adapte ton niveau de détail à la complexité de la question
+
+Objectif : Fournir une assistance de qualité avec des réponses rapides et pertinentes.""",
+                "" // Le chemin du modèle sera défini par l'utilisateur
+            );
+
+            // Paramètres optimisés pour Llama-3.2-8B (équilibre vitesse/qualité)
+            profile.temperature = 0.7f;        // Bon équilibre créativité/cohérence
+            profile.top_p = 0.9f;             // Garde 90% des tokens les plus probables
+            profile.top_k = 40;               // Limite raisonnable pour la vitesse
+            profile.max_tokens = 1024;        // Réponses détaillées mais pas trop longues
+            profile.repetition_penalty = 1.1f; // Évite les répétitions légères
+            profile.frequency_penalty = 0.0f;  // Pas de pénalité de fréquence
+            profile.presence_penalty = 0.0f;   // Pas de pénalité de présence
+            profile.seed = -1;                // Aléatoire pour la diversité
+            profile.context_length = 8192;    // Contexte large pour les modèles 8B
+            profile.stream = true;            // Streaming activé pour feedback temps réel
+
+            return profile;
+        }
+
+        /**
+         * Crée et sauvegarde un profil optimisé 8B
+         * @return L'ID du profil créé
+         */
+        public string create_and_save_optimized_8b_profile() {
+            var optimized_profile = create_optimized_8b_profile();
+            save_profile(optimized_profile);
+            return optimized_profile.id;
         }
 
         /**

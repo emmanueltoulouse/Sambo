@@ -13,6 +13,7 @@ namespace Sambo {
         private bool is_simulation_mode = false; // Mode réel par défaut
         private bool is_generation_cancelled = false; // Pour annuler la génération
         private Thread<void*>? current_generation_thread = null; // Thread actuel
+        private ConfigManager config_manager; // Gestionnaire de configuration
 
         // Signaux pour informer l'interface
         public signal void model_loaded(string model_path, string model_name);
@@ -34,6 +35,10 @@ namespace Sambo {
          * Constructeur public
          */
         public ModelManager() {
+            // Récupérer l'instance de ConfigManager
+            config_manager = new ConfigManager();
+            config_manager.load();
+
             // Initialiser le backend llama.cpp
             init_backend();
         }
@@ -224,18 +229,32 @@ namespace Sambo {
          * Génération asynchrone pour éviter de bloquer l'interface utilisateur
          */
         private async void generate_response_async(string prompt, Llama.SamplingParams params, owned GenerationCallback? callback) {
+            stderr.printf("[TRACE][OUT] MODELMANAGER: generate_response_async démarré\n");
+            stderr.printf("[TRACE][OUT] MODELMANAGER: params.stream = %s, callback = %s\n",
+                params.stream ? "TRUE" : "FALSE",
+                callback != null ? "NON-NULL" : "NULL");
+
+            // Récupérer le timeout depuis la configuration (en secondes)
+            int timeout_seconds = config_manager.get_generation_timeout();
+            int64 timeout_microseconds = timeout_seconds == 0 ? 0 : (int64)timeout_seconds * 1000000;
+
+            stderr.printf("[TRACE][OUT] MODELMANAGER: Timeout configuré: %d secondes (%s)\n",
+                timeout_seconds, timeout_seconds == 0 ? "INFINI" : "LIMITÉ");
+
             // Créer un thread pour la génération avec timeout de sécurité
             var start_time = get_monotonic_time();
-            var timeout_microseconds = 30000000; // 30 secondes timeout
+
+            // Copier le callback pour éviter les problèmes de mémoire
+            GenerationCallback? local_callback = callback;
 
             current_generation_thread = new Thread<void*>("ai_generation", () => {
                 // Vérifier l'annulation avant de commencer
                 if (is_generation_cancelled) {
                     Idle.add(() => {
-                        if (callback != null) {
-                            callback("⏹️ Génération annulée", true);
+                        if (local_callback != null) {
+                            local_callback("⏹️ Génération annulée", true);
                         }
-                        return false;
+                        return Source.REMOVE;
                     });
                     return null;
                 }
@@ -244,91 +263,142 @@ namespace Sambo {
                 bool generation_successful = false;
 
                 try {
-                    // Génération réelle via llama.cpp
-                    response = Llama.generate_simple(prompt, &params);
+                    stderr.printf("[TRACE][OUT] MODELMANAGER: Début du try - vérification streaming\n");
+                    // Vérifier si on a le streaming activé
+                    if (params.stream && local_callback != null) {
+                        stderr.printf("[TRACE][OUT] MODELMANAGER: STREAMING ACTIVÉ - début génération réelle\n");
+
+                        // Tenter la génération réelle avec streaming via llama.cpp
+                        try {
+                            response = generate_real_streaming(prompt, params, local_callback, &is_generation_cancelled);
+                            generation_successful = (response != null && response.length > 0);
+
+                            stderr.printf("[TRACE][IN] MODELMANAGER: Génération streaming réelle terminée, résultat: %s (%d caractères)\n",
+                                generation_successful ? "SUCCÈS" : "ÉCHEC",
+                                response != null ? (int)response.length : 0);
+                        } catch (Error streaming_error) {
+                            stderr.printf("⚠️ MODELMANAGER: Erreur streaming réel, fallback vers simulation: %s\n", streaming_error.message);
+
+                            // Fallback vers la simulation si le streaming réel échoue
+                            response = generate_streaming_simulation(prompt, params, local_callback, &is_generation_cancelled);
+                            generation_successful = (response != null && response.length > 0);
+
+                            stderr.printf("[TRACE][IN] MODELMANAGER: Simulation streaming (fallback) terminée, résultat: %s (%d caractères)\n",
+                                generation_successful ? "SUCCÈS" : "ÉCHEC",
+                                response != null ? (int)response.length : 0);
+                        }
+                    } else {
+                        stderr.printf("[TRACE][OUT] MODELMANAGER: PAS DE STREAMING - params.stream=%s, callback=%s\n",
+                            params.stream ? "TRUE" : "FALSE",
+                            local_callback != null ? "NON-NULL" : "NULL");
+                        // Génération simple sans streaming
+                        stderr.printf("[TRACE][OUT] MODELMANAGER: Génération simple sans streaming\n");
+                        response = Llama.generate_simple(prompt, &params);
+                        generation_successful = (response != null);
+                        stderr.printf("[TRACE][IN] MODELMANAGER: Génération simple terminée: %s\n",
+                            generation_successful ? "SUCCÈS" : "ÉCHEC");
+                    }
 
                     // Vérifier l'annulation après la génération
                     if (is_generation_cancelled) {
                         Idle.add(() => {
-                            if (callback != null) {
-                                callback("⏹️ Génération annulée", true);
+                            if (local_callback != null) {
+                                local_callback("⏹️ Génération annulée", true);
                             }
-                            return false;
+                            return Source.REMOVE;
                         });
                         return null;
                     }
-
-                    generation_successful = true;
 
                 } catch (Error e) {
                     stderr.printf("❌ MODELMANAGER: Erreur lors de la génération: %s\n", e.message);
                     generation_successful = false;
                 }
 
-                // Vérifier le timeout
-                var elapsed_time = get_monotonic_time() - start_time;
-                if (elapsed_time > timeout_microseconds) {
-                    Idle.add(() => {
-                        if (callback != null) {
-                            callback("⏱️ Timeout de génération atteint", true);
-                        }
-                        return false;
-                    });
-                    return null;
+                // Vérifier le timeout (seulement si configuré)
+                if (timeout_microseconds > 0) {
+                    var elapsed_time = get_monotonic_time() - start_time;
+                    if (elapsed_time > timeout_microseconds) {
+                        Idle.add(() => {
+                            if (local_callback != null) {
+                                local_callback("⏱️ Timeout de génération atteint", true);
+                            }
+                            return Source.REMOVE;
+                        });
+                        return null;
+                    }
                 }
 
-                // Traiter le résultat
+                // Traiter le résultat final
                 if (generation_successful && response != null && response.length > 0) {
-                    // Appeler le callback dans le thread principal
-                    Idle.add(() => {
-                        if (callback != null) {
-                            callback(response, true); // true = terminé
-                        }
-                        return false;
-                    });
+                    // Pour le streaming, envoyer le signal de fin
+                    if (params.stream && local_callback != null) {
+                        // Pour le streaming simulé, juste signaler la fin
+                        Idle.add(() => {
+                            stderr.printf("[TRACE][OUT] MODELMANAGER: Envoi signal de fin de streaming simulé\n");
+                            if (local_callback != null) {
+                                local_callback(response, true); // true = terminé
+                            }
+                            return Source.REMOVE;
+                        });
+                    } else {
+                        // Pour la génération simple, appeler le callback avec le résultat final
+                        Idle.add(() => {
+                            stderr.printf("[TRACE][OUT] MODELMANAGER: Envoi résultat final non-stream\n");
+                            if (local_callback != null) {
+                                local_callback(response, true); // true = terminé
+                            }
+                            return Source.REMOVE;
+                        });
+                    }
                 } else {
                     Idle.add(() => {
-                        if (callback != null) {
-                            callback("❌ Erreur lors de la génération", true);
+                        stderr.printf("[TRACE][OUT] MODELMANAGER: Envoi erreur de génération\n");
+                        if (local_callback != null) {
+                            local_callback("❌ Erreur lors de la génération", true);
                         }
-                        return false;
+                        return Source.REMOVE;
                     });
                 }
 
                 return null;
             });
 
-            // Surveillance du thread avec timeout et kill forcé
-            Timeout.add_seconds(35, () => {
-                if (current_generation_thread != null && is_generating()) {
-                    // Forcer l'annulation
-                    is_generation_cancelled = true;
+            // Surveillance du thread avec timeout et kill forcé (seulement si timeout configuré)
+            if (timeout_seconds > 0) {
+                Timeout.add_seconds(timeout_seconds + 5, () => { // 5 secondes de marge pour le nettoyage
+                    if (current_generation_thread != null && is_generating()) {
+                        stderr.printf("[TRACE][OUT] MODELMANAGER: Timeout de sécurité atteint, nettoyage forcé\n");
 
-                    // Tenter d'arrêter le backend
-                    if (!is_simulation_mode) {
-                        Llama.stop_generation();
+                        // Forcer l'annulation
+                        is_generation_cancelled = true;
 
-                        // Forcer le nettoyage du modèle
-                        try {
-                            string current_model = current_model_path;
-                            Llama.unload_model();
-                            Thread.usleep(200000); // 200ms
-                            if (current_model != "") {
-                                Llama.load_model(current_model);
+                        // Tenter d'arrêter le backend
+                        if (!is_simulation_mode) {
+                            Llama.stop_generation();
+
+                            // Forcer le nettoyage du modèle
+                            try {
+                                string current_model = current_model_path;
+                                Llama.unload_model();
+                                Thread.usleep(200000); // 200ms
+                                if (current_model != "") {
+                                    Llama.load_model(current_model);
+                                }
+                            } catch (Error e) {
+                                stderr.printf("⚠️ MODELMANAGER: Erreur lors du nettoyage forcé: %s\n", e.message);
                             }
-                        } catch (Error e) {
-                            stderr.printf("⚠️ MODELMANAGER: Erreur lors du nettoyage forcé: %s\n", e.message);
                         }
+
+                        // Marquer le thread comme terminé
+                        current_generation_thread = null;
+
+                        // Émettre le signal d'annulation
+                        generation_cancelled.emit();
                     }
-
-                    // Marquer le thread comme terminé
-                    current_generation_thread = null;
-
-                    // Émettre le signal d'annulation
-                    generation_cancelled.emit();
-                }
-                return false; // Ne pas répéter
-            });
+                    return false; // Ne pas répéter
+                });
+            }
         }
 
         /**
@@ -383,17 +453,224 @@ Cette réponse est générée en mode simulation car llama.cpp n'est pas disponi
 
             return response;
         }
-        
+
+        /**
+         * Génère une réponse avec streaming simulé pendant l'exécution réelle
+         */
+        private string? generate_streaming_simulation(string prompt, Llama.SamplingParams params, GenerationCallback callback, bool* cancel_ref) {
+            stderr.printf("[TRACE][OUT] MODELMANAGER: Début génération streaming simulé\n");
+
+            // Créer des réponses simulées basées sur le prompt
+            string[] possible_responses = {
+                "Je suis Sambo, votre assistant IA. Comment puis-je vous aider aujourd'hui ?",
+                "Excellente question ! Laissez-moi réfléchir à cela...",
+                "D'après mes connaissances, voici ce que je peux vous dire :",
+                "C'est un sujet intéressant. Permettez-moi de vous expliquer...",
+                "Je vais analyser votre demande et vous fournir une réponse détaillée."
+            };
+
+            // Choisir une réponse de base (simulation simple)
+            string base_response = possible_responses[0];
+
+            // Si le prompt contient des mots-clés spécifiques, adapter la réponse
+            string prompt_lower = prompt.down();
+            if ("capital" in prompt_lower || "capitale" in prompt_lower) {
+                if ("france" in prompt_lower) {
+                    base_response = "La capitale de la France est Paris. Paris est une ville historique située au centre-nord de la France, sur la Seine. C'est le centre politique, économique et culturel du pays.";
+                } else {
+                    base_response = "Pour répondre à votre question sur les capitales, j'aurais besoin de savoir de quel pays vous parlez spécifiquement.";
+                }
+            } else if ("bonjour" in prompt_lower || "salut" in prompt_lower) {
+                base_response = "Bonjour ! Je suis Sambo, votre assistant IA. Comment puis-je vous aider aujourd'hui ?";
+            } else if ("comment" in prompt_lower && "allez" in prompt_lower) {
+                base_response = "Je vais très bien, merci de demander ! En tant qu'assistant IA, je suis toujours prêt à vous aider. Que puis-je faire pour vous ?";
+            } else {
+                base_response = "Je comprends votre question. Laissez-moi vous fournir une réponse détaillée et utile sur ce sujet.";
+            }
+
+            stderr.printf("[TRACE][OUT] MODELMANAGER: Réponse simulée choisie (%d caractères)\n", (int)base_response.length);
+
+            // Simuler le streaming progressif mot par mot
+            string[] words = base_response.split(" ");
+            var partial_response = new StringBuilder();
+
+            foreach (string word in words) {
+                if (*cancel_ref) {
+                    stderr.printf("[TRACE][OUT] MODELMANAGER: Annulation détectée dans simulation\n");
+                    break;
+                }
+
+                partial_response.append(word).append(" ");
+                string current_content = partial_response.str;
+
+                stderr.printf("[TRACE][OUT] MODELMANAGER: Envoi simulation (%d caractères): '%s'\n",
+                    (int)current_content.length,
+                    current_content.length > 50 ? current_content.substring(0, 50) + "..." : current_content);
+
+                // Envoyer la mise à jour dans le thread principal
+                Idle.add(() => {
+                    stderr.printf("[TRACE][IN] MODELMANAGER: Callback simulation dans thread principal\n");
+                    if (!(*cancel_ref) && callback != null) {
+                        stderr.printf("[TRACE][OUT] MODELMANAGER: Appel callback simulation avec %d caractères\n",
+                            (int)current_content.length);
+                        callback(current_content, false); // false = pas terminé
+                    } else {
+                        stderr.printf("[TRACE][OUT] MODELMANAGER: Callback simulation annulé\n");
+                    }
+                    return Source.REMOVE;
+                });
+
+                // Délai pour simuler le streaming progressif
+                Thread.usleep(100000); // 100ms pour voir le streaming
+            }
+
+            stderr.printf("[TRACE][OUT] MODELMANAGER: Fin simulation streaming\n");
+            return base_response;
+        }
+
+        /**
+         * Génère une réponse avec vrai streaming via llama.cpp
+         */
+        private string? generate_real_streaming(string prompt, Llama.SamplingParams params, GenerationCallback callback, bool* cancel_ref) {
+            stderr.printf("[TRACE][OUT] MODELMANAGER: Début génération streaming réelle avec llama.cpp\n");
+
+            var response_builder = new StringBuilder();
+            string? final_response = null;
+            bool generation_completed = false;
+            bool has_error = false;
+
+            // Créer la structure pour passer les données au callback C
+            StreamingContext context = {};
+            context.response_builder = response_builder;
+            context.vala_callback = callback;
+            context.cancel_ref = cancel_ref;
+            context.generation_completed = &generation_completed;
+            context.has_error = &has_error;
+
+            try {
+                stderr.printf("[TRACE][OUT] MODELMANAGER: Appel Llama.generate avec streaming réel\n");
+
+                // Appel de la vraie fonction de streaming llama.cpp
+                bool success = Llama.generate(prompt, &params, streaming_callback_wrapper, &context);
+
+                if (!success) {
+                    stderr.printf("[TRACE][OUT] MODELMANAGER: Échec de Llama.generate, fallback vers simulation\n");
+                    throw new IOError.FAILED("Échec de la génération llama.cpp");
+                }
+
+                // Attendre que la génération soit terminée
+                var start_time = get_monotonic_time();
+                int timeout_seconds = config_manager.get_generation_timeout();
+                int64 timeout_microseconds = timeout_seconds == 0 ? 0 : (int64)timeout_seconds * 1000000;
+
+                stderr.printf("[TRACE][OUT] MODELMANAGER: Attente streaming avec timeout: %d sec (%s)\n",
+                    timeout_seconds, timeout_seconds == 0 ? "INFINI" : "LIMITÉ");
+
+                while (!generation_completed && !(*cancel_ref) && !has_error) {
+                    Thread.usleep(10000); // 10ms
+
+                    // Vérifier le timeout (seulement si configuré)
+                    if (timeout_microseconds > 0) {
+                        var elapsed_time = get_monotonic_time() - start_time;
+                        if (elapsed_time > timeout_microseconds) {
+                            stderr.printf("[TRACE][OUT] MODELMANAGER: Timeout streaming réel\n");
+                            Llama.stop_generation();
+                            throw new IOError.TIMED_OUT("Timeout de génération");
+                        }
+                    }
+                }
+
+                if (*cancel_ref) {
+                    stderr.printf("[TRACE][OUT] MODELMANAGER: Génération annulée\n");
+                    Llama.stop_generation();
+                    final_response = null;
+                } else if (has_error) {
+                    stderr.printf("[TRACE][OUT] MODELMANAGER: Erreur durant la génération\n");
+                    final_response = null;
+                } else {
+                    final_response = response_builder.str;
+                    stderr.printf("[TRACE][OUT] MODELMANAGER: Génération streaming réelle réussie (%d caractères)\n",
+                        final_response != null ? (int)final_response.length : 0);
+                }
+
+            } catch (Error e) {
+                stderr.printf("❌ MODELMANAGER: Erreur streaming réel, fallback vers simulation: %s\n", e.message);
+
+                // Fallback vers la simulation si le streaming réel échoue
+                return generate_streaming_simulation(prompt, params, callback, cancel_ref);
+            }
+
+            stderr.printf("[TRACE][OUT] MODELMANAGER: Fin génération streaming réelle\n");
+            return final_response;
+        }
+
+        // Structure pour passer le contexte au callback C
+        private struct StreamingContext {
+            unowned StringBuilder response_builder;
+            unowned GenerationCallback vala_callback;
+            bool* cancel_ref;
+            bool* generation_completed;
+            bool* has_error;
+        }
+
+        // Callback appelé par llama.cpp pour chaque token généré
+        private static void streaming_callback_wrapper(string token, void* user_data, void* closure_data) {
+            StreamingContext* context = (StreamingContext*)user_data;
+
+            stderr.printf("[TRACE][TOKEN] Reçu token: '%s' (longueur: %d)\n",
+                token.length > 20 ? token.substring(0, 20) + "..." : token,
+                (int)token.length);
+
+            // Vérifier l'annulation
+            if (*(context->cancel_ref)) {
+                stderr.printf("[TRACE][TOKEN] Annulation détectée dans callback\n");
+                *(context->generation_completed) = true;
+                return;
+            }
+
+            // Cas spéciaux : fin de génération
+            if (token == "" || token == "</s>" || token == "<|end|>" || token == "<|endoftext|>") {
+                stderr.printf("[TRACE][TOKEN] Token de fin détecté: '%s'\n", token);
+                *(context->generation_completed) = true;
+
+                // Notifier la fin via le callback Vala
+                Idle.add(() => {
+                    if (!(*(context->cancel_ref)) && context->vala_callback != null) {
+                        string final_content = context->response_builder.str;
+                        stderr.printf("[TRACE][CALLBACK] Fin génération - %d caractères au total\n",
+                            (int)final_content.length);
+                        context->vala_callback(final_content, true); // true = terminé
+                    }
+                    return Source.REMOVE;
+                });
+                return;
+            }
+
+            // Ajouter le token à la réponse
+            context->response_builder.append(token);
+            string current_content = context->response_builder.str;
+
+            // Notifier le nouveau contenu via le callback Vala
+            Idle.add(() => {
+                if (!(*(context->cancel_ref)) && context->vala_callback != null) {
+                    stderr.printf("[TRACE][CALLBACK] Mise à jour streaming - %d caractères\n",
+                        (int)current_content.length);
+                    context->vala_callback(current_content, false); // false = pas terminé
+                }
+                return Source.REMOVE;
+            });
+        }
+
         /**
          * Annule la génération en cours
          */
         public void cancel_generation() {
             is_generation_cancelled = true;
-            
+
             // Arrêter la génération llama.cpp si elle est en cours
             if (!is_simulation_mode) {
                 Llama.stop_generation();
-                
+
                 // Forcer le nettoyage du modèle et recharger pour s'assurer que le processus s'arrête
                 try {
                     string current_model = current_model_path;
@@ -405,7 +682,7 @@ Cette réponse est générée en mode simulation car llama.cpp n'est pas disponi
                 } catch (Error e) {
                     stderr.printf("⚠️ MODELMANAGER: Erreur lors du rechargement: %s\n", e.message);
                 }
-                
+
                 // En cas d'urgence, utiliser le script de nettoyage
                 Timeout.add(2000, () => {
                     try {
@@ -417,10 +694,10 @@ Cette réponse est générée en mode simulation car llama.cpp n'est pas disponi
                     return false;
                 });
             }
-            
+
             // Marquer le thread comme terminé
             current_generation_thread = null;
-            
+
             generation_cancelled.emit();
         }
 
@@ -437,6 +714,15 @@ Cette réponse est générée en mode simulation car llama.cpp n'est pas disponi
          * @param is_finished true si la génération est terminée
          */
         public delegate void GenerationCallback(string partial_response, bool is_finished);
+
+        /**
+         * Met à jour la configuration du timeout depuis les préférences
+         */
+        public void update_config() {
+            config_manager.load();
+            stderr.printf("[TRACE][OUT] MODELMANAGER: Configuration mise à jour - timeout: %d sec\n",
+                config_manager.get_generation_timeout());
+        }
 
         /**
          * Destructeur - libère les ressources

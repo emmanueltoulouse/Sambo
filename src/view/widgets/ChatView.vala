@@ -19,6 +19,7 @@ namespace Sambo {
         private Adw.ToastOverlay toast_overlay;
         private Gtk.ProgressBar progress_bar; // Indicateur de progression
         private bool is_processing = false;
+        private bool is_generation_cancelled = false; // Flag pour l'annulation
 
         // Profil d'inférence actuel
         private InferenceProfile? current_profile = null;
@@ -34,9 +35,6 @@ namespace Sambo {
             Object(orientation: Orientation.VERTICAL, spacing: 6);
             this.controller = controller;
 
-            // Charger le profil sélectionné
-            load_current_profile();
-
             // Ajouter la classe CSS
             this.add_css_class("chat-view");
 
@@ -46,6 +44,7 @@ namespace Sambo {
             // Conteneur pour les messages
             message_container = new Box(Orientation.VERTICAL, 10);
             message_container.set_vexpand(true);
+            message_container.add_css_class("chat-messages-container"); // Debug CSS
 
             // Zone de défilement pour les messages
             scroll = new ScrolledWindow();
@@ -85,6 +84,9 @@ namespace Sambo {
             // Ajouter le ToastOverlay à la vue principale
             this.append(toast_overlay);
 
+            // Charger le profil sélectionné (APRÈS avoir créé les widgets)
+            load_current_profile();
+
             // Connecter aux signaux de configuration
             var config = controller.get_config_manager();
             config.profiles_changed.connect(on_profiles_changed);
@@ -107,6 +109,11 @@ namespace Sambo {
          * Met à jour l'affichage du profil
          */
         private void update_profile_display() {
+            // Vérifier que les labels sont créés avant de les mettre à jour
+            if (profile_label == null || status_label == null) {
+                return;
+            }
+
             if (current_profile != null) {
                 profile_label.set_text(current_profile.title);
                 status_label.set_text("Profil : " + current_profile.title);
@@ -415,6 +422,9 @@ namespace Sambo {
                 return;
             }
 
+            // Réinitialiser le flag d'annulation
+            is_generation_cancelled = false;
+
             is_processing = true;
             status_label.set_text("Génération en cours...");
 
@@ -449,6 +459,7 @@ namespace Sambo {
             string full_context = prepare_context_with_profile(user_message);
 
             // Générer la réponse avec le vrai moteur d'IA
+            stderr.printf("[TRACE][OUT] CHATVIEW: Appel generate_real_ai_response avec callback\n");
             generate_real_ai_response(full_context, sampling_params);
         }
 
@@ -456,7 +467,7 @@ namespace Sambo {
          * Crée les paramètres de sampling depuis le profil
          */
         private Llama.SamplingParams create_sampling_params_from_profile(InferenceProfile profile) {
-            return Llama.SamplingParams() {
+            var params = Llama.SamplingParams() {
                 temperature = profile.temperature,
                 top_p = profile.top_p,
                 top_k = profile.top_k,
@@ -468,6 +479,13 @@ namespace Sambo {
                 context_length = profile.context_length,
                 stream = profile.stream
             };
+
+            stderr.printf("[TRACE][OUT] CHATVIEW: Paramètres créés - stream = %s\n",
+                params.stream ? "TRUE" : "FALSE");
+            stderr.printf("[TRACE][OUT] CHATVIEW: Profil stream = %s\n",
+                profile.stream ? "TRUE" : "FALSE");
+
+            return params;
         }
 
         /**
@@ -508,15 +526,36 @@ namespace Sambo {
             }
 
             // Générer la réponse avec streaming
+            stderr.printf("[TRACE][OUT] CHATVIEW: Appel controller.generate_ai_response avec callback\n");
             controller.generate_ai_response(context, params, (partial_response, is_finished) => {
-                if (current_ai_message != null && current_ai_bubble != null) {
+                stderr.printf("[TRACE][IN] CHATVIEW: Callback reçu - %d caractères, terminé: %s\n",
+                    (int)partial_response.length, is_finished ? "OUI" : "NON");
+                stderr.printf("[TRACE][IN] CHATVIEW: Contenu reçu: '%s'\n",
+                    partial_response.length > 100 ? partial_response.substring(0, 100) + "..." : partial_response);
+
+                // Vérifier que l'interface n'a pas été détruite et qu'on traite toujours le bon message
+                if (current_ai_message != null && current_ai_bubble != null && !is_generation_cancelled) {
+                    stderr.printf("[TRACE][IN] CHATVIEW: Interface disponible, mise à jour...\n");
+
+                    // Mettre à jour le contenu du message
                     current_ai_message.content = partial_response;
+                    stderr.printf("[TRACE][OUT] CHATVIEW: Message mis à jour, appel update_content()\n");
                     current_ai_bubble.update_content();
-                    scroll_to_bottom();
+
+                    // Faire défiler vers le bas pour suivre la génération
+                    Idle.add(() => {
+                        scroll_to_bottom();
+                        return Source.REMOVE;
+                    });
 
                     if (is_finished) {
+                        stderr.printf("[TRACE][IN] CHATVIEW: Génération terminée - nettoyage\n");
+
+                        // Génération terminée
                         is_processing = false;
                         status_label.set_text("Profil : " + current_profile.title);
+
+                        // Nettoyer les références
                         current_ai_message = null;
                         current_ai_bubble = null;
 
@@ -525,7 +564,12 @@ namespace Sambo {
                         cancel_generation_button.set_visible(false);
                         send_button.set_sensitive(true);
                         message_entry.set_sensitive(true);
+
+                        // Donner le focus à l'entrée de message pour une nouvelle saisie
+                        message_entry.grab_focus();
                     }
+                } else {
+                    stderr.printf("[TRACE][IN] CHATVIEW: Interface non disponible ou génération annulée\n");
                 }
             });
         }
@@ -558,8 +602,12 @@ namespace Sambo {
          * Fait défiler vers le bas de la conversation
          */
         private void scroll_to_bottom() {
+            stderr.printf("🔄 CHATVIEW: scroll_to_bottom appelé\n");
             var vadj = scroll.get_vadjustment();
+            stderr.printf("🔄 CHATVIEW: vadj upper: %f, page_size: %f, value: %f\n",
+                vadj.get_upper(), vadj.get_page_size(), vadj.get_value());
             vadj.set_value(vadj.get_upper() - vadj.get_page_size());
+            stderr.printf("🔄 CHATVIEW: Nouveau value: %f\n", vadj.get_value());
         }
 
         /**
@@ -603,21 +651,43 @@ namespace Sambo {
          * Ajoute un nouveau message à la conversation
          */
         public void add_message(ChatMessage message) {
+            stderr.printf("🔵 CHATVIEW: add_message appelé\n");
+
             // Vérification de sécurité
             if (message == null) {
+                stderr.printf("❌ CHATVIEW: Message null dans add_message\n");
                 warning("Tentative d'ajout d'un message null");
                 return;
             }
 
+            stderr.printf("🔵 CHATVIEW: Création ChatBubbleRow pour message: '%s'\n", message.content ?? "(vide)");
+
             // Créer et ajouter la bulle de message
             var bubble = new ChatBubbleRow(message);
+
+            stderr.printf("🔵 CHATVIEW: ChatBubbleRow créé, ajout au message_container\n");
             message_container.append(bubble);
+
+            stderr.printf("🔵 CHATVIEW: Message ajouté au conteneur, nombre d'enfants: %u\n",
+                message_container.get_first_child() != null ? 1 : 0);
+
+            // Forcer l'affichage des widgets
+            message_container.set_visible(true);
+            bubble.set_visible(true);
+            scroll.set_visible(true);
+
+            stderr.printf("🔵 CHATVIEW: Visibilité forcée - container: %s, bubble: %s, scroll: %s\n",
+                message_container.get_visible() ? "VISIBLE" : "MASQUÉ",
+                bubble.get_visible() ? "VISIBLE" : "MASQUÉ",
+                scroll.get_visible() ? "VISIBLE" : "MASQUÉ");
 
             // Faire défiler vers le bas
             Idle.add(() => {
                 scroll_to_bottom();
                 return Source.REMOVE;
             });
+
+            stderr.printf("✅ CHATVIEW: add_message terminé\n");
         }
 
         /**
@@ -659,6 +729,10 @@ namespace Sambo {
          * Gestionnaire du bouton d'annulation de génération
          */
         private void on_cancel_generation_clicked() {
+            // Marquer la génération comme annulée
+            is_generation_cancelled = true;
+
+            // Annuler dans le ModelManager
             var model_manager = controller.get_model_manager();
             model_manager.cancel_generation();
 
@@ -668,7 +742,9 @@ namespace Sambo {
             // Marquer le message AI actuel comme annulé
             if (current_ai_message != null) {
                 current_ai_message.content = "⏹️ Génération annulée par l'utilisateur";
-                current_ai_message.update_content();
+                if (current_ai_bubble != null) {
+                    current_ai_bubble.update_content();
+                }
             }
 
             show_toast("⏹️ Génération annulée");
@@ -695,6 +771,7 @@ namespace Sambo {
          */
         private void force_unlock_ui() {
             is_processing = false;
+            is_generation_cancelled = false; // Réinitialiser le flag d'annulation
             status_label.set_text("Prêt");
             progress_bar.set_visible(false);
             cancel_generation_button.set_visible(false);
