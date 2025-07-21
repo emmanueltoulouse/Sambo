@@ -1720,14 +1720,12 @@ namespace Sambo {
         private string prepare_context_with_profile(string user_message) {
             var context = new StringBuilder();
             
-            // Ajouter le prompt système du profil
-            context.append("### Instructions système\n");
+            // Utiliser le format de chat template pour Llama 3.2
+            context.append("<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n");
             context.append(current_profile.prompt);
-            context.append("\n\n### Assistant\n");
-            context.append("Bonjour ! Je suis prêt à vous aider.\n\n");
-            context.append("### Utilisateur\n");
+            context.append("<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n");
             context.append(user_message);
-            context.append("\n\n### Assistant\n");
+            context.append("<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n");
             
             return context.str;
         }

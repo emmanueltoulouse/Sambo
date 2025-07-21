@@ -1,4 +1,4 @@
-project('Sambo', 'vala', 'c',
+project('Sambo', 'vala', 'c', 'cpp',
         version: '0.1.0',
         license: 'GPL-3.0-or-later',
         default_options: [
@@ -49,6 +49,7 @@ endif
 # Définir HAVE_LLAMA_CPP maintenant, avant toute autre cible
 if have_llama_cpp
   add_global_arguments('-DHAVE_LLAMA_CPP=1', language: 'c')
+  add_global_arguments('-DHAVE_LLAMA_CPP=1', language: 'cpp')
   message('HAVE_LLAMA_CPP défini - mode llama.cpp réel activé')
 else
   message('Mode simulation activé - llama.cpp non disponible')
@@ -56,12 +57,37 @@ endif
 
 # Maintenant charger les dépendances llama.cpp
 llama_dep = dependency('', required: false)  # Initialisation
+ggml_dep = dependency('', required: false)   # Initialisation
 
 # Vérifier si le sous-projet llama existe et le charger
 if fs.is_dir('subprojects/llama')
+  # Charger le sous-projet cmake
   llama_subproject = cmake.subproject('llama')
-  llama_dep = llama_subproject.dependency('llama')
-  message('llama.cpp chargé avec succès depuis subprojects/')
+  
+  # Essayer de récupérer les dépendances du sous-projet
+  if llama_subproject.found()
+    llama_dep = llama_subproject.dependency('llama')
+    ggml_dep = llama_subproject.dependency('ggml')
+    
+    # Si les dépendances du sous-projet ne sont pas trouvées, les créer manuellement
+    if not llama_dep.found()
+      llama_dep = declare_dependency(
+        link_args: ['-L' + meson.current_build_dir() + '/subprojects/llama', '-lllama'],
+        compile_args: ['-I' + meson.current_source_dir() + '/subprojects/llama/include']
+      )
+      message('llama.cpp configuré manuellement depuis subprojects/')
+    endif
+    
+    if not ggml_dep.found()
+      ggml_dep = declare_dependency(
+        link_args: ['-L' + meson.current_build_dir() + '/subprojects/llama', '-lggml'],
+        compile_args: ['-I' + meson.current_source_dir() + '/subprojects/llama/ggml/include']
+      )
+      message('ggml configuré manuellement depuis subprojects/')
+    endif
+    
+    message('llama.cpp et ggml chargés avec succès depuis subprojects/')
+  endif
 endif
 
 # Si le sous-projet a échoué, essayer find_library
@@ -70,6 +96,12 @@ if not llama_dep.found()
     dirs: ['/usr/local/lib', '/usr/lib'],
     required: false
   )
+  if llama_dep.found()
+    ggml_dep = meson.get_compiler('c').find_library('ggml',
+      dirs: ['/usr/local/lib', '/usr/lib'],
+      required: false
+    )
+  endif
 endif
 
 # Si llama.cpp n'est pas trouvé via find_library, essayer de déclarer manuellement
@@ -82,10 +114,15 @@ if not llama_dep.found()
       link_args: ['-L/usr/local/lib', '-lllama'],
       compile_args: ['-I/usr/local/include']
     )
-    message('llama.cpp trouvé dans /usr/local')
+    ggml_dep = declare_dependency(
+      link_args: ['-L/usr/local/lib', '-lggml'],
+      compile_args: ['-I/usr/local/include']
+    )
+    message('llama.cpp et ggml trouvés dans /usr/local')
   else
     warning('llama.cpp non trouvé, mode simulation activé')
     llama_dep = dependency('', required: false)  # Dépendance vide
+    ggml_dep = dependency('', required: false)   # Dépendance vide
   endif
 endif
 
@@ -111,8 +148,8 @@ sources = [
     'src/HeaderBar.vala',
     'src/TextEditor.vala',
 
-    # Wrapper C pour llama.cpp
-    'src/sambo_llama_wrapper.c',
+    # Wrapper C++ pour llama.cpp
+    'src/sambo_llama_wrapper.cpp',
 
     # Modèles
     'src/model/ApplicationModel.vala',
@@ -191,6 +228,7 @@ dependencies = [
     gio_dep,
     soup_dep,
     llama_dep,
+    ggml_dep,
 ]
 
 # Configuration des schemas GSettings

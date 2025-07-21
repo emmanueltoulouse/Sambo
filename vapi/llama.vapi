@@ -6,6 +6,16 @@
 [CCode (cheader_filename = "sambo_llama_wrapper.h")]
 namespace Llama {
 
+    // Configuration optimisée du backend
+    [CCode (cname = "sambo_llama_backend_init_optimized")]
+    public static bool backend_init_optimized(int n_threads, int batch_size, bool enable_mmap, bool enable_mlock);
+
+    [CCode (cname = "sambo_llama_get_optimal_threads")]
+    public static int get_optimal_threads();
+
+    [CCode (cname = "sambo_llama_configure_performance")]
+    public static void configure_performance(int n_threads, int batch_size, bool gpu_offload);
+
     // Fonctions d'initialisation/finalisation du backend
     [CCode (cname = "sambo_llama_backend_init")]
     public static bool backend_init();

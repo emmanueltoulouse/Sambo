@@ -10,6 +10,11 @@ namespace Sambo {
         private Label time_label;
         private ChatMessage message;
         private Button? send_to_editor_button = null; // Ajout d'un bouton pour transférer vers l'éditeur
+        
+        // Optimisations UI
+        private uint update_timeout_id = 0;     // ID du timeout pour debouncing
+        private int64 last_update_time = 0;     // Timestamp dernière mise à jour
+        private bool pending_update = false;    // Mise à jour en attente
 
         /**
          * Propriété publique pour accéder au message
@@ -153,15 +158,55 @@ namespace Sambo {
         }
 
         /**
-         * Met à jour le contenu affiché (pour le streaming)
+         * Met à jour le contenu affiché avec optimisations (debouncing pour streaming)
          */
         public void update_content() {
             stderr.printf("[TRACE][IN] CHATBUBBLEROW: update_content appelé\n");
+            
+            var current_time = get_monotonic_time();
+            
+            // Debouncing : éviter les mises à jour trop fréquentes (max 30 FPS = 33ms)
+            if (current_time - last_update_time < 33000) {
+                // Planifier une mise à jour différée si pas déjà planifiée
+                if (!pending_update) {
+                    pending_update = true;
+                    
+                    // Annuler le timeout précédent s'il existe
+                    if (update_timeout_id != 0) {
+                        Source.remove(update_timeout_id);
+                    }
+                    
+                    // Planifier la mise à jour dans 33ms
+                    update_timeout_id = Timeout.add(33, () => {
+                        execute_content_update();
+                        update_timeout_id = 0;
+                        pending_update = false;
+                        return Source.REMOVE;
+                    });
+                }
+                return;
+            }
+            
+            // Mise à jour immédiate si assez de temps s'est écoulé
+            execute_content_update();
+        }
+        
+        /**
+         * Exécute réellement la mise à jour du contenu
+         */
+        private void execute_content_update() {
             if (content_label != null && message != null) {
                 stderr.printf("[TRACE][IN] CHATBUBBLEROW: Mise à jour du contenu: '%s'\n",
                     message.content.length > 50 ? message.content.substring(0, 50) + "..." : message.content ?? "(vide)");
                 stderr.printf("[TRACE][OUT] CHATBUBBLEROW: Appel content_label.set_text()\n");
-                content_label.set_text(message.content);
+                
+                // Optimisation : éviter les appels set_text inutiles
+                string new_content = message.content ?? "";
+                if (content_label.get_text() != new_content) {
+                    content_label.set_text(new_content);
+                    last_update_time = get_monotonic_time();
+                }
+                
                 stderr.printf("[TRACE][OUT] CHATBUBBLEROW: Contenu mis à jour avec succès\n");
             } else {
                 stderr.printf("[TRACE][IN] CHATBUBBLEROW: ERREUR - content_label ou message est null\n");

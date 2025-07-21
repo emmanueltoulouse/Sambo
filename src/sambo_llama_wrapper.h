@@ -13,6 +13,11 @@ G_BEGIN_DECLS
 gboolean sambo_llama_backend_init();
 void sambo_llama_backend_free();
 
+// Fonctions d'optimisation des performances
+gboolean sambo_llama_backend_init_optimized(gint n_threads, gint batch_size, gboolean enable_mmap, gboolean enable_mlock);
+gint sambo_llama_get_optimal_threads();
+void sambo_llama_configure_performance(gint n_threads, gint batch_size, gboolean gpu_offload);
+
 gboolean sambo_llama_load_model(const gchar* model_path);
 void sambo_llama_unload_model();
 gboolean sambo_llama_is_model_loaded();

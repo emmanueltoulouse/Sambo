@@ -96,6 +96,9 @@ namespace Sambo {
             add_message(welcome);
         }
 
+        // Modèle actuellement en cours de chargement pour éviter les doublons
+        private string? loading_model_path = null;
+
         /**
          * Charge le profil actuellement sélectionné
          */
@@ -103,6 +106,60 @@ namespace Sambo {
             var config = controller.get_config_manager();
             current_profile = config.get_selected_profile();
             update_profile_display();
+            
+            // Charger automatiquement le modèle du profil sélectionné
+            if (current_profile != null && current_profile.model_path != null && current_profile.model_path != "") {
+                var model_manager = controller.get_model_manager();
+                
+                // Éviter de recharger le même modèle s'il est déjà chargé ou en cours de chargement
+                if (loading_model_path == current_profile.model_path ||
+                    (model_manager.is_model_ready() && model_manager.get_current_model_path() == current_profile.model_path)) {
+                    stderr.printf("[TRACE] ChatView: Modèle déjà chargé ou en cours de chargement: %s\n", current_profile.model_path);
+                    return;
+                }
+                
+                loading_model_path = current_profile.model_path;
+                stderr.printf("[TRACE] ChatView: Chargement automatique du modèle: %s\n", current_profile.model_path);
+                
+                // Connecter aux signaux du ModelManager s'ils ne le sont pas déjà
+                setup_model_manager_signals(model_manager);
+                
+                // Afficher le statut de chargement
+                status_label.set_text("Chargement du modèle...");
+                
+                // Le résultat du chargement sera géré par les signaux model_loaded/model_load_failed
+                model_manager.load_model(current_profile.model_path);
+            }
+        }
+
+        // Flag pour éviter de connecter plusieurs fois les mêmes signaux
+        private bool signals_connected = false;
+
+        /**
+         * Configure les signaux du ModelManager
+         */
+        private void setup_model_manager_signals(ModelManager model_manager) {
+            // Éviter de connecter plusieurs fois les mêmes signaux
+            if (signals_connected) return;
+            signals_connected = true;
+            
+            // Signal de succès de chargement
+            model_manager.model_loaded.connect((model_path, model_name) => {
+                stderr.printf("[TRACE] ChatView: Modèle chargé avec succès: %s\n", model_name);
+                loading_model_path = null; // Réinitialiser le flag de chargement
+                show_toast(@"✅ Modèle chargé : $(model_name)");
+                status_label.set_text(@"Modèle : $(model_name)");
+            });
+            
+            // Signal d'échec de chargement
+            model_manager.model_load_failed.connect((model_path, error_message) => {
+                stderr.printf("[ERROR] ChatView: Échec du chargement du modèle: %s\n", error_message);
+                loading_model_path = null; // Réinitialiser le flag de chargement
+                string model_name = Path.get_basename(model_path);
+                show_toast(@"❌ Échec du chargement : $(error_message)");
+                // Afficher la raison de l'échec dans la barre d'état
+                status_label.set_text(@"❌ Échec : $(error_message)");
+            });
         }
 
         /**
@@ -110,16 +167,19 @@ namespace Sambo {
          */
         private void update_profile_display() {
             // Vérifier que les labels sont créés avant de les mettre à jour
-            if (profile_label == null || status_label == null) {
+            if (profile_label == null) {
                 return;
             }
 
             if (current_profile != null) {
                 profile_label.set_text(current_profile.title);
-                status_label.set_text("Profil : " + current_profile.title);
+                // Note: Ne pas modifier status_label ici, il est géré par les signaux de chargement du modèle
             } else {
                 profile_label.set_text("Aucun profil");
-                status_label.set_text("Aucun profil d'inférence sélectionné");
+                // Seulement si aucun profil n'est sélectionné, on peut mettre à jour le statut
+                if (status_label != null) {
+                    status_label.set_text("Aucun profil d'inférence sélectionné");
+                }
             }
         }
 
@@ -494,14 +554,12 @@ namespace Sambo {
         private string prepare_context_with_profile(string user_message) {
             var context = new StringBuilder();
 
-            // Ajouter le prompt système du profil
-            context.append("### Instructions système\n");
+            // Utiliser le format de chat template pour Llama 3.2
+            context.append("<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n");
             context.append(current_profile.prompt);
-            context.append("\n\n### Assistant\n");
-            context.append("Bonjour ! Je suis prêt à vous aider.\n\n");
-            context.append("### Utilisateur\n");
+            context.append("<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n");
             context.append(user_message);
-            context.append("\n\n### Assistant\n");
+            context.append("<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n");
 
             return context.str;
         }
@@ -553,7 +611,7 @@ namespace Sambo {
 
                         // Génération terminée
                         is_processing = false;
-                        status_label.set_text("Profil : " + current_profile.title);
+                        status_label.set_text("Prêt"); // Statut neutre après génération
 
                         // Nettoyer les références
                         current_ai_message = null;
