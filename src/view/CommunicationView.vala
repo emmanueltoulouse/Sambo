@@ -15,9 +15,12 @@ namespace Sambo {
         private ChatView chat_view;
         private TerminalView terminal_view;
         private Box action_bar;
-        private Button transfer_button;
-        private Button save_button;
         private Label status_label;
+        private Label execution_time_label;
+        
+        // Variables pour le chronomètre
+        private int64 start_time = 0;
+        private uint timer_source_id = 0;
 
         public CommunicationView(ApplicationController controller) {
             Object(orientation: Orientation.VERTICAL, spacing: 6);
@@ -96,15 +99,6 @@ namespace Sambo {
             frame.set_child(content_box);
             this.append(frame);
 
-            // Ajouter un bouton pour tester le terminal à tout moment
-            var debug_button = new Button.with_label("Réinitialiser Terminal");
-            debug_button.clicked.connect(() => {
-                print("Tentative de réinitialisation du terminal\n");
-                terminal_view.focus_entry();
-                terminal_view.check_entry_state();
-            });
-            content_box.append(debug_button);
-
             // Écouter les nouveaux messages du modèle
             controller.subscribe_to_messages((message) => {
                 // Ajouter le message à la vue de chat
@@ -131,28 +125,11 @@ namespace Sambo {
             status_label.set_hexpand(true);
             action_bar.append(status_label);
 
-            // Groupe de boutons d'actions
-            var actions_group = new Box(Orientation.HORIZONTAL, 6);
-            actions_group.add_css_class("linked");
-
-            // Bouton de transfert élégant
-            transfer_button = new Button.with_label("Transférer vers l'éditeur");
-            transfer_button.set_icon_name("document-send-symbolic");
-            transfer_button.add_css_class("suggested-action");
-            transfer_button.set_tooltip_text("Fusionner et transférer le contenu vers l'éditeur");
-            transfer_button.clicked.connect(on_zone_transfer_requested);
-
-            // Bouton de sauvegarde rapide
-            save_button = new Button.with_label("Sauvegarder");
-            save_button.set_icon_name("document-save-symbolic");
-            save_button.add_css_class("flat");
-            save_button.set_tooltip_text("Sauvegarder la session actuelle");
-            save_button.clicked.connect(on_save_session);
-            save_button.set_sensitive(false); // Désactivé par défaut
-
-            actions_group.append(transfer_button);
-            actions_group.append(save_button);
-            action_bar.append(actions_group);
+                        // Label pour afficher le temps d'exécution (8 caractères, à droite)
+            execution_time_label = new Label("--:--");
+            execution_time_label.add_css_class("execution-time");
+            execution_time_label.set_visible(true);
+            execution_time_label.set_size_request(60, -1); // Largeur fixe pour 8 caractères
 
             // Ajouter les styles CSS
             var css_provider = new CssProvider();
@@ -171,6 +148,17 @@ namespace Sambo {
                         font-size: 0.9em;
                         color: alpha(@foreground_color, 0.7);
                         font-style: italic;
+                    }
+
+                    .execution-time {
+                        font-size: 0.85em;
+                        color: alpha(@foreground_color, 0.8);
+                        font-family: monospace;
+                        font-weight: 500;
+                        background: alpha(@accent_color, 0.1);
+                        padding: 2px 6px;
+                        border-radius: 4px;
+                        border: 1px solid alpha(@accent_color, 0.2);
                     }
 
                     .communication-action-bar button {
@@ -222,21 +210,6 @@ namespace Sambo {
         }
 
         /**
-         * Gestionnaire pour la sauvegarde de session
-         */
-        private void on_save_session() {
-            update_status("Sauvegarde de la session...", true);
-
-            // TODO: Implémenter la sauvegarde réelle de la session
-            // Pour l'instant, on simule juste une sauvegarde
-            Timeout.add(1000, () => {
-                update_status("Session sauvegardée avec succès", true);
-                save_button.set_sensitive(false);
-                return false;
-            });
-        }
-
-        /**
          * Charge le fichier CSS personnalisé pour les bulles et autres éléments d'interface
          */
         private void load_css() {
@@ -254,40 +227,87 @@ namespace Sambo {
         }
 
         /**
-         * Gestionnaire pour le signal de transfert des zones
-         */
-        private void on_zone_transfer_requested() {
-            update_status("Transfert en cours...", true);
-            transfer_button.set_sensitive(false);
-
-            try {
-                var transfer_manager = ZoneTransferManager.get_instance(controller);
-                bool success = transfer_manager.perform_zone_transfer(chat_view, terminal_view);
-
-                if (success) {
-                    update_status("Contenu transféré avec succès", true);
-                    save_button.set_sensitive(true); // Activer la sauvegarde après transfert
-                } else {
-                    update_status("Échec du transfert des zones", false);
-                }
-            } catch (Error e) {
-                update_status("Erreur lors du transfert : " + e.message, false);
-            }
-
-            // Réactiver le bouton après un délai
-            Timeout.add(1500, () => {
-                transfer_button.set_sensitive(true);
-                return false;
-            });
-        }
-
-        /**
          * Rafraîchit la sélection de profil dans le ChatView
          */
         public void refresh_profile_selection() {
             if (chat_view != null) {
                 chat_view.refresh_profile_selection();
             }
+        }
+
+        /**
+         * Démarre le chronomètre pour mesurer le temps d'exécution
+         */
+        public void start_execution_timer() {
+            start_time = get_monotonic_time();
+            execution_time_label.set_text("00:00.00");
+            
+            // Arrêter le timer précédent s'il existe
+            if (timer_source_id != 0) {
+                Source.remove(timer_source_id);
+                timer_source_id = 0;
+            }
+            
+            // Démarrer un nouveau timer qui se met à jour toutes les 10ms
+            timer_source_id = Timeout.add(10, update_execution_timer);
+        }
+
+        /**
+         * Arrête le chronomètre et affiche le temps final
+         */
+        public void stop_execution_timer() {
+            if (timer_source_id != 0) {
+                Source.remove(timer_source_id);
+                timer_source_id = 0;
+            }
+            
+            if (start_time > 0) {
+                int64 elapsed_microseconds = get_monotonic_time() - start_time;
+                string final_time = format_execution_time(elapsed_microseconds);
+                execution_time_label.set_text(final_time);
+                start_time = 0;
+            }
+        }
+
+        /**
+         * Remet à zéro le chronomètre
+         */
+        public void reset_execution_timer() {
+            if (timer_source_id != 0) {
+                Source.remove(timer_source_id);
+                timer_source_id = 0;
+            }
+            start_time = 0;
+            execution_time_label.set_text("00:00.00");
+        }
+
+        /**
+         * Met à jour l'affichage du temps d'exécution
+         */
+        private bool update_execution_timer() {
+            if (start_time > 0) {
+                int64 elapsed_microseconds = get_monotonic_time() - start_time;
+                string time_text = format_execution_time(elapsed_microseconds);
+                execution_time_label.set_text(time_text);
+                return true; // Continuer le timer
+            }
+            return false; // Arrêter le timer
+        }
+
+        /**
+         * Formate le temps d'exécution en format MM:SS.CC (8 caractères)
+         */
+        private string format_execution_time(int64 microseconds) {
+            double seconds = microseconds / 1000000.0;
+            int minutes = (int)(seconds / 60);
+            double remaining_seconds = seconds % 60.0;
+            
+            // Limiter à 99 minutes maximum pour tenir en 8 caractères
+            if (minutes > 99) {
+                return "99:59.99";
+            }
+            
+            return "%02d:%05.2f".printf(minutes, remaining_seconds);
         }
 
         /**

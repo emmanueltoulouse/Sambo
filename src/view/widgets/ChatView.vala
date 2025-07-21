@@ -488,6 +488,15 @@ namespace Sambo {
             is_processing = true;
             status_label.set_text("Génération en cours...");
 
+            // Démarrer le chronomètre dans le CommunicationView
+            var parent_widget = this.get_parent();
+            while (parent_widget != null && !(parent_widget is CommunicationView)) {
+                parent_widget = parent_widget.get_parent();
+            }
+            if (parent_widget is CommunicationView) {
+                ((CommunicationView)parent_widget).start_execution_timer();
+            }
+
             // Afficher les indicateurs de progression et le bouton d'annulation
             progress_bar.set_visible(true);
             progress_bar.pulse(); // Animation de progression indéterminée
@@ -609,6 +618,15 @@ namespace Sambo {
                     if (is_finished) {
                         stderr.printf("[TRACE][IN] CHATVIEW: Génération terminée - nettoyage\n");
 
+                        // Arrêter le chronomètre dans le CommunicationView
+                        var parent_widget = this.get_parent();
+                        while (parent_widget != null && !(parent_widget is CommunicationView)) {
+                            parent_widget = parent_widget.get_parent();
+                        }
+                        if (parent_widget is CommunicationView) {
+                            ((CommunicationView)parent_widget).stop_execution_timer();
+                        }
+
                         // Génération terminée
                         is_processing = false;
                         status_label.set_text("Prêt"); // Statut neutre après génération
@@ -636,6 +654,15 @@ namespace Sambo {
          * Affiche un message d'erreur dans le chat
          */
         private void show_error_response(string error_message) {
+            // Arrêter le chronomètre en cas d'erreur
+            var parent_widget = this.get_parent();
+            while (parent_widget != null && !(parent_widget is CommunicationView)) {
+                parent_widget = parent_widget.get_parent();
+            }
+            if (parent_widget is CommunicationView) {
+                ((CommunicationView)parent_widget).stop_execution_timer();
+            }
+
             if (current_ai_message != null && current_ai_bubble != null) {
                 current_ai_message.content = error_message;
                 current_ai_bubble.update_content();
@@ -789,6 +816,15 @@ namespace Sambo {
         private void on_cancel_generation_clicked() {
             // Marquer la génération comme annulée
             is_generation_cancelled = true;
+
+            // Arrêter le chronomètre en cas d'annulation
+            var parent_widget = this.get_parent();
+            while (parent_widget != null && !(parent_widget is CommunicationView)) {
+                parent_widget = parent_widget.get_parent();
+            }
+            if (parent_widget is CommunicationView) {
+                ((CommunicationView)parent_widget).stop_execution_timer();
+            }
 
             // Annuler dans le ModelManager
             var model_manager = controller.get_model_manager();

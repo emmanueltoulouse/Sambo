@@ -9,7 +9,6 @@ namespace Sambo {
         private Label content_label;
         private Label time_label;
         private ChatMessage message;
-        private Button? send_to_editor_button = null; // Ajout d'un bouton pour transférer vers l'éditeur
 
         // Optimisations UI
         private uint update_timeout_id = 0;     // ID du timeout pour debouncing
@@ -81,80 +80,9 @@ namespace Sambo {
             bubble_box.append(time_label);
             stderr.printf("🟡 CHATBUBBLEROW: Labels ajoutés à bubble_box\n");
 
-            // Créer un bouton pour transférer le contenu vers l'éditeur
-            // Le bouton n'est visible que pour les réponses de l'IA
-            if (!is_user) {
-                send_to_editor_button = new Button();
-                stderr.printf("🟡 CHATBUBBLEROW: Bouton éditeur créé\n");
-                send_to_editor_button.set_icon_name("document-edit-symbolic");
-                send_to_editor_button.add_css_class("flat");
-                send_to_editor_button.set_tooltip_text(_("Transférer vers l'éditeur"));
-                send_to_editor_button.set_halign(Align.END);
-                send_to_editor_button.set_valign(Align.CENTER);
-                send_to_editor_button.clicked.connect(on_send_to_editor);
-
-                var button_box = new Box(Orientation.HORIZONTAL, 0);
-                stderr.printf("🟡 CHATBUBBLEROW: button_box créé\n");
-                button_box.set_halign(Align.END);
-                button_box.append(send_to_editor_button);
-                bubble_box.append(button_box);
-                stderr.printf("🟡 CHATBUBBLEROW: Bouton ajouté à bubble_box\n");
-            }
-
             // Ajouter la bulle à la boîte principale
             this.append(bubble_box);
             stderr.printf("✅ CHATBUBBLEROW: Construction terminée - bubble_box ajouté au widget principal\n");
-        }
-
-        /**
-         * Gère le clic sur le bouton "Transférer vers l'éditeur"
-         */
-        private void on_send_to_editor() {
-            // Trouver la fenêtre principale
-            var app_window = this.get_root() as Gtk.Window;
-            if (app_window == null) return;
-
-            // Trouver le premier MainWindow dans les parents
-            unowned Gtk.Window? main_window = app_window;
-
-            // Créer un gestionnaire de documents
-            var doc_manager = Sambo.Document.DocumentConverterManager.get_instance();
-
-            try {
-                // Créer un document pivot à partir du contenu du message
-                var doc = doc_manager.create_document_from_content(message.content, "", "md");
-
-                // Trouver une référence à la MainWindow
-                if (app_window is MainWindow) {
-                    var main = (MainWindow) app_window;
-                    // Ouvrir le document dans un nouvel onglet
-                    main.open_document_in_tab(doc, "");
-
-                    // Afficher un toast
-                    var toast = new Adw.Toast(_("Message transféré vers l'éditeur"));
-                    toast.set_timeout(3);
-                    main.add_toast(toast);
-                } else {
-                    // Essayer de trouver la MainWindow dans l'application
-                    var app = GLib.Application.get_default() as Gtk.Application;
-                    if (app != null) {
-                        foreach (var window in app.get_windows()) {
-                            if (window is MainWindow) {
-                                var main = (MainWindow) window;
-                                main.open_document_in_tab(doc, "");
-
-                                // Afficher un toast
-                                var toast = new Adw.Toast(_("Message transféré vers l'éditeur"));
-                                toast.set_timeout(3);
-                                main.add_toast(toast);
-                                break;
-                            }
-                        }
-                    }
-                }
-            } catch (Error e) {
-                warning("Erreur lors du transfert vers l'éditeur : %s", e.message);
-            }
         }
 
         /**

@@ -72,22 +72,21 @@ public class MainWindow : Adw.ApplicationWindow {
         // HeaderBar
         header_bar = new Adw.HeaderBar();
 
-        // === AJOUT ICI : Bouton TEST à gauche ===
-        var test_button = new Gtk.Button.with_label("TEST");
-        test_button.set_tooltip_text("Bouton de test");
-        test_button.add_css_class("suggested-action"); // Optionnel : style bleu
-        test_button.clicked.connect(() => {
-            // Action de test ici (exemple : afficher une notification)
-            add_toast(new Adw.Toast("Bouton TEST cliqué !"));
-        });
-        header_bar.pack_start(test_button);
-
-        // Boutons de toggle pour l'interface
+        // Boutons de toggle pour l'interface (à gauche)
         explorer_button = new ToggleButton();
         explorer_button.set_icon_name("folder-symbolic");
         explorer_button.set_tooltip_text("Afficher/Masquer l'explorateur");
         explorer_button.set_active(true);
-        header_bar.pack_end(explorer_button);
+        header_bar.pack_start(explorer_button);
+
+        editor_button = new ToggleButton();
+        editor_button.set_icon_name("text-editor-symbolic");
+        editor_button.set_tooltip_text("Afficher/Masquer la zone d'édition");
+        editor_button.set_active(true);
+        editor_button.toggled.connect((button) => {
+            toggle_editor_visibility(button.get_active());
+        });
+        header_bar.pack_start(editor_button);
 
         communication_button = new ToggleButton();
         communication_button.set_icon_name("mail-message-new-symbolic");
@@ -96,17 +95,7 @@ public class MainWindow : Adw.ApplicationWindow {
         communication_button.toggled.connect((button) => {
             toggle_communication_visibility(button.get_active());
         });
-        header_bar.pack_end(communication_button);
-
-        // Bouton pour afficher/masquer la zone d'édition
-        editor_button = new ToggleButton();
-        editor_button.set_icon_name("text-editor-symbolic");
-        editor_button.set_tooltip_text("Afficher/Masquer la zone d'édition");
-        editor_button.set_active(true);
-        editor_button.toggled.connect((button) => {
-            toggle_editor_visibility(button.get_active());
-        });
-        header_bar.pack_end(editor_button);
+        header_bar.pack_start(communication_button);
 
         // Menu hamburger à droite
         var menu_button = new MenuButton();
