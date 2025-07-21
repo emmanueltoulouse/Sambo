@@ -106,27 +106,27 @@ namespace Sambo {
             var config = controller.get_config_manager();
             current_profile = config.get_selected_profile();
             update_profile_display();
-            
+
             // Charger automatiquement le modèle du profil sélectionné
             if (current_profile != null && current_profile.model_path != null && current_profile.model_path != "") {
                 var model_manager = controller.get_model_manager();
-                
+
                 // Éviter de recharger le même modèle s'il est déjà chargé ou en cours de chargement
                 if (loading_model_path == current_profile.model_path ||
                     (model_manager.is_model_ready() && model_manager.get_current_model_path() == current_profile.model_path)) {
                     stderr.printf("[TRACE] ChatView: Modèle déjà chargé ou en cours de chargement: %s\n", current_profile.model_path);
                     return;
                 }
-                
+
                 loading_model_path = current_profile.model_path;
                 stderr.printf("[TRACE] ChatView: Chargement automatique du modèle: %s\n", current_profile.model_path);
-                
+
                 // Connecter aux signaux du ModelManager s'ils ne le sont pas déjà
                 setup_model_manager_signals(model_manager);
-                
+
                 // Afficher le statut de chargement
                 status_label.set_text("Chargement du modèle...");
-                
+
                 // Le résultat du chargement sera géré par les signaux model_loaded/model_load_failed
                 model_manager.load_model(current_profile.model_path);
             }
@@ -142,7 +142,7 @@ namespace Sambo {
             // Éviter de connecter plusieurs fois les mêmes signaux
             if (signals_connected) return;
             signals_connected = true;
-            
+
             // Signal de succès de chargement
             model_manager.model_loaded.connect((model_path, model_name) => {
                 stderr.printf("[TRACE] ChatView: Modèle chargé avec succès: %s\n", model_name);
@@ -150,7 +150,7 @@ namespace Sambo {
                 show_toast(@"✅ Modèle chargé : $(model_name)");
                 status_label.set_text(@"Modèle : $(model_name)");
             });
-            
+
             // Signal d'échec de chargement
             model_manager.model_load_failed.connect((model_path, error_message) => {
                 stderr.printf("[ERROR] ChatView: Échec du chargement du modèle: %s\n", error_message);

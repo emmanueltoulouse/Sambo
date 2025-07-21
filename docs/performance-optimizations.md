@@ -90,7 +90,7 @@ UI refresh : 30 FPS max
 
 ### Après optimisations (estimées) :
 - Première réponse : 0.5-1 seconde
-- Streaming : 50-100 tokens/seconde  
+- Streaming : 50-100 tokens/seconde
 - Usage CPU : 40-60% pendant génération
 - Usage RAM : Stable 4-6GB
 

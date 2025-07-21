@@ -14,7 +14,7 @@ namespace Sambo {
         private bool is_generation_cancelled = false; // Pour annuler la génération
         private Thread<void*>? current_generation_thread = null; // Thread actuel
         private ConfigManager config_manager; // Gestionnaire de configuration
-        
+
         // Optimisations mémoire
         private bool model_preloaded = false;            // Modèle gardé en mémoire
         private string preloaded_model_path = "";        // Chemin du modèle préchargé
@@ -63,7 +63,7 @@ namespace Sambo {
                     // Détecter la configuration optimale automatiquement
                     int optimal_threads = get_optimal_thread_count();
                     int optimal_batch_size = get_optimal_batch_size();
-                    
+
                     stderr.printf("[PERF] MODELMANAGER: Configuration optimisée détectée:\n");
                     stderr.printf("[PERF] - Threads: %d\n", optimal_threads);
                     stderr.printf("[PERF] - Batch size: %d\n", optimal_batch_size);
@@ -77,21 +77,21 @@ namespace Sambo {
                         true,              // MMAP activé pour chargement rapide
                         true               // MLOCK activé (32GB RAM suffisante)
                     );
-                    
+
                     if (success) {
                         is_backend_initialized = true;
                         is_simulation_mode = false;
-                        
+
                         // Configuration additionnelle des performances
                         Llama.configure_performance(optimal_threads, optimal_batch_size, false);
-                        
+
                         stderr.printf("[PERF] MODELMANAGER: Backend optimisé initialisé avec succès\n");
                     } else {
                         throw new IOError.NOT_FOUND("Backend llama.cpp optimisé non disponible, fallback simple");
                     }
                 } catch (Error e) {
                     stderr.printf("[PERF] MODELMANAGER: Fallback vers initialisation simple: %s\n", e.message);
-                    
+
                     // Fallback vers l'initialisation simple
                     try {
                         bool success = Llama.backend_init();
@@ -129,11 +129,11 @@ namespace Sambo {
                 string nproc_output;
                 Process.spawn_command_line_sync("nproc", out nproc_output);
                 int total_cores = int.parse(nproc_output.strip());
-                
+
                 // Pour l'IA : utiliser 75% des cœurs (laisser de la place pour l'UI)
                 int optimal = (int)(total_cores * 0.75);
                 return optimal > 0 ? optimal : 8; // Minimum 8 threads
-                
+
             } catch (Error e) {
                 stderr.printf("[PERF] MODELMANAGER: Erreur détection threads système: %s\n", e.message);
                 return 12; // Valeur par défaut conservative pour 32GB RAM
@@ -198,7 +198,7 @@ namespace Sambo {
 
                 // Vérifier que le modèle est vraiment chargé
                 bool really_loaded = Llama.is_model_loaded();
-                stderr.printf("[DEBUG] MODELMANAGER: Wrapper dit succès=%s, vraiment chargé=%s\n", 
+                stderr.printf("[DEBUG] MODELMANAGER: Wrapper dit succès=%s, vraiment chargé=%s\n",
                             success ? "true" : "false", really_loaded ? "true" : "false");
 
                 if (really_loaded) {
@@ -213,7 +213,7 @@ namespace Sambo {
 
                     string model_name = Path.get_basename(model_path);
                     model_loaded(model_path, model_name);
-                    
+
                     stderr.printf("[PERF] MODELMANAGER: Modèle vraiment chargé avec succès\n");
                     return true;
                 } else {
@@ -246,11 +246,11 @@ namespace Sambo {
             new Thread<void*>("model_preloader", () => {
                 try {
                     stderr.printf("[PERF] MODELMANAGER: Préchargement du modèle en arrière-plan...\n");
-                    
+
                     // Simuler le préchargement (en réalité, cela dépend de l'API llama.cpp)
                     // Pour l'instant, on prépare juste les structures en mémoire
                     preloaded_model_path = model_path;
-                    
+
                     stderr.printf("[PERF] MODELMANAGER: Préchargement terminé\n");
                 } catch (Error e) {
                     stderr.printf("[PERF] MODELMANAGER: Erreur préchargement: %s\n", e.message);
@@ -264,23 +264,23 @@ namespace Sambo {
          */
         private void force_garbage_collection() {
             var current_time = get_monotonic_time();
-            
+
             // Éviter les GC trop fréquents (max 1 par minute)
             if (current_time - last_gc_time < 60000000) { // 60 secondes
                 return;
             }
 
             stderr.printf("[PERF] MODELMANAGER: Garbage collection forcé\n");
-            
+
             // Nettoyer les StringBuilder réutilisables
             context_pool.truncate(0);
-            
+
             // En Vala, le garbage collection se fait automatiquement
             // On peut juste nettoyer les références locales et forcer un petit délai
             Thread.usleep(10000); // 10ms pour permettre le nettoyage automatique
-            
+
             last_gc_time = current_time;
-            
+
             stderr.printf("[PERF] MODELMANAGER: Garbage collection terminé\n");
         }
 
@@ -832,14 +832,14 @@ Cette réponse est générée en mode simulation car llama.cpp n'est pas disponi
             // Cas spéciaux : fin de génération
             if (token == "" || token == "</s>" || token == "<|end|>" || token == "<|endoftext|>") {
                 stderr.printf("[TRACE][TOKEN] Token de fin détecté: '%s'\n", token);
-                
+
                 // Vider le buffer avant de terminer
                 if (context->buffer_size > 0) {
                     context->response_builder.append(context->token_buffer.str);
                     context->token_buffer.truncate(0);
                     context->buffer_size = 0;
                 }
-                
+
                 *(context->generation_completed) = true;
 
                 // Notifier la fin via le callback Vala
@@ -866,9 +866,9 @@ Cette réponse est générée en mode simulation car llama.cpp n'est pas disponi
             // 1. Buffer plein (3-5 tokens groupés pour fluidité)
             // 2. Plus de 50ms depuis la dernière mise à jour (limite 20 FPS)
             // 3. Token de ponctuation (pour préserver la lisibilité)
-            if (context->buffer_size >= 4 || 
+            if (context->buffer_size >= 4 ||
                 (current_time - context->last_update_time) > 50000 ||
-                token.contains(" ") || token.contains(".") || token.contains(",") || 
+                token.contains(" ") || token.contains(".") || token.contains(",") ||
                 token.contains("!") || token.contains("?")) {
                 should_update = true;
             }
@@ -877,7 +877,7 @@ Cette réponse est générée en mode simulation car llama.cpp n'est pas disponi
                 // Vider le buffer dans la réponse complète
                 context->response_builder.append(context->token_buffer.str);
                 string current_content = context->response_builder.str;
-                
+
                 // Réinitialiser le buffer
                 context->token_buffer.truncate(0);
                 context->buffer_size = 0;

@@ -63,12 +63,12 @@ ggml_dep = dependency('', required: false)   # Initialisation
 if fs.is_dir('subprojects/llama')
   # Charger le sous-projet cmake
   llama_subproject = cmake.subproject('llama')
-  
+
   # Essayer de récupérer les dépendances du sous-projet
   if llama_subproject.found()
     llama_dep = llama_subproject.dependency('llama')
     ggml_dep = llama_subproject.dependency('ggml')
-    
+
     # Si les dépendances du sous-projet ne sont pas trouvées, les créer manuellement
     if not llama_dep.found()
       llama_dep = declare_dependency(
@@ -77,7 +77,7 @@ if fs.is_dir('subprojects/llama')
       )
       message('llama.cpp configuré manuellement depuis subprojects/')
     endif
-    
+
     if not ggml_dep.found()
       ggml_dep = declare_dependency(
         link_args: ['-L' + meson.current_build_dir() + '/subprojects/llama', '-lggml'],
@@ -85,7 +85,7 @@ if fs.is_dir('subprojects/llama')
       )
       message('ggml configuré manuellement depuis subprojects/')
     endif
-    
+
     message('llama.cpp et ggml chargés avec succès depuis subprojects/')
   endif
 endif
@@ -257,20 +257,22 @@ executable('Sambo',
     install: true
 )
 
-# Fichier de bureau (.desktop) - temporairement commenté
-# configure_file(
-#     input: 'data/com.cabineteto.Sambo.desktop.in',
-#     output: 'com.cabineteto.Sambo.desktop',
-#     configuration: {
-#         'BINDIR': get_option('bindir'),
-#     },
-#     install: true,
-#     install_dir: join_paths(get_option('datadir'), 'applications')
-# )
+# Fichier de bureau (.desktop)
+configure_file(
+    input: 'data/com.cabineteto.Sambo.desktop.in',
+    output: 'com.cabineteto.Sambo.desktop',
+    configuration: {
+        'NAME': 'Sambo',
+        'EXEC': join_paths(get_option('prefix'), get_option('bindir'), 'Sambo'),
+        'ICON': 'com.cabineteto.Sambo',
+    },
+    install: true,
+    install_dir: join_paths(get_option('datadir'), 'applications')
+)
 
-# Icônes (temporairement commenté pour éviter les erreurs de fichiers manquants)
-# install_data(join_paths('data', 'icons', 'hicolor', 'scalable', 'apps', 'com.cabineteto.Sambo.svg'),
-#              install_dir: join_paths(get_option('datadir'), 'icons', 'hicolor', 'scalable', 'apps'))
+# Installation de l'icône
+install_data(join_paths('data', 'icons', 'hicolor', 'scalable', 'apps', 'com.cabineteto.Sambo.png'),
+             install_dir: join_paths(get_option('datadir'), 'icons', 'hicolor', 'scalable', 'apps'))
 
 # Scripts utiles
 install_data('scripts/install_icon_and_desktop.sh',

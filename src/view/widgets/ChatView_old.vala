@@ -1380,7 +1380,7 @@ namespace Sambo {
         private void show_current_prompt_dialog() {
             // Construire le prompt actuel
             string current_prompt = build_current_prompt();
-            
+
             // Obtenir la fenêtre parent
             var parent_window = this.get_root() as Gtk.Window;
 
@@ -1413,7 +1413,7 @@ namespace Sambo {
                 // Copier le prompt dans le presse-papiers
                 var clipboard = Gdk.Display.get_default().get_clipboard();
                 clipboard.set_text(current_prompt);
-                
+
                 var toast = new Adw.Toast("Prompt copié dans le presse-papiers");
                 toast.set_timeout(2);
                 toast_overlay.add_toast(toast);
@@ -1449,7 +1449,7 @@ namespace Sambo {
             text_view.set_cursor_visible(false);
             text_view.set_wrap_mode(WrapMode.WORD_CHAR);
             text_view.add_css_class("card");
-            
+
             // Configurer le buffer de texte
             var buffer = text_view.get_buffer();
             buffer.set_text(current_prompt, -1);
@@ -1466,7 +1466,7 @@ namespace Sambo {
             // Ajouter des statistiques du prompt
             var stats_box = new Box(Orientation.HORIZONTAL, 12);
             stats_box.set_halign(Align.START);
-            
+
             var char_count_label = new Label(@"Caractères : $(current_prompt.length)");
             char_count_label.add_css_class("dim-label");
             stats_box.append(char_count_label);
@@ -1545,7 +1545,7 @@ namespace Sambo {
             text_view.add_css_class("card");
             text_view.set_hexpand(true);
             text_view.set_vexpand(true);
-            
+
             // Configurer le buffer de texte avec le prompt actuel
             var buffer = text_view.get_buffer();
             buffer.set_text(system_prompt, -1);
@@ -1567,7 +1567,7 @@ namespace Sambo {
             content_box.append(examples_label);
 
             var examples_box = new Box(Orientation.VERTICAL, 6);
-            
+
             // Exemple 1 : Assistant général
             var example1_button = new Button.with_label("Assistant général");
             example1_button.add_css_class("flat");
@@ -1601,16 +1601,16 @@ namespace Sambo {
                 buffer.get_start_iter(out start);
                 buffer.get_end_iter(out end);
                 string new_prompt = buffer.get_text(start, end, false);
-                
+
                 // Sauvegarder le nouveau prompt
                 system_prompt = new_prompt;
                 save_system_prompt();
-                
+
                 // Afficher une notification
                 var toast = new Adw.Toast("Prompt système sauvegardé");
                 toast.set_timeout(2);
                 toast_overlay.add_toast(toast);
-                
+
                 dialog.close();
             });
 
@@ -1630,7 +1630,7 @@ namespace Sambo {
          */
         private string build_current_prompt() {
             var prompt_builder = new StringBuilder();
-            
+
             // Ajouter le prompt système s'il existe
             if (system_prompt != null && system_prompt.length > 0) {
                 prompt_builder.append("### Instructions système :\n");
@@ -1644,7 +1644,7 @@ namespace Sambo {
                 if (child is ChatBubbleRow) {
                     var bubble_row = child as ChatBubbleRow;
                     var message = bubble_row.get_message();
-                    
+
                     if (message != null) {
                         if (message.sender == ChatMessage.SenderType.USER) {
                             prompt_builder.append("### Utilisateur :\n");
@@ -1719,14 +1719,14 @@ namespace Sambo {
          */
         private string prepare_context_with_profile(string user_message) {
             var context = new StringBuilder();
-            
+
             // Utiliser le format de chat template pour Llama 3.2
             context.append("<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n");
             context.append(current_profile.prompt);
             context.append("<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n");
             context.append(user_message);
             context.append("<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n");
-            
+
             return context.str;
         }
 
@@ -1741,20 +1741,20 @@ namespace Sambo {
             response += "- Top-K : %d\n".printf(params.top_k);
             response += "- Max tokens : %d\n".printf(params.max_tokens);
             response += "\nModèle : %s\n".printf(Path.get_basename(current_profile.model_path));
-            
+
             // Simuler l'ajout progressif du texte
             Timeout.add(100, () => {
                 if (current_ai_message != null && current_ai_bubble != null) {
                     current_ai_message.content = response;
                     current_ai_bubble.update_content();
-                    
+
                     is_processing = false;
                     status_label.set_text("Profil : " + current_profile.title);
-                    
+
                     // Réinitialiser
                     current_ai_message = null;
                     current_ai_bubble = null;
-                    
+
                     scroll_to_bottom();
                 }
                 return false;
