@@ -26,10 +26,13 @@ public class MainWindow : Adw.ApplicationWindow {
     private CommunicationView communication_view;
     private ToggleButton explorer_button;
     private ToggleButton communication_button;
+    private ToggleButton editor_button;
 
     private Notebook editor_notebook;
     private Gee.List<EditorView> editor_tabs = new Gee.ArrayList<EditorView>();
     private bool use_detached_explorer = false;
+    private bool editor_visible = true;
+    private bool communication_visible = true;
 
     public signal void file_opened(string path);
     public signal void directory_changed(string path);
@@ -90,7 +93,20 @@ public class MainWindow : Adw.ApplicationWindow {
         communication_button.set_icon_name("mail-message-new-symbolic");
         communication_button.set_tooltip_text("Afficher/Masquer la zone de communication");
         communication_button.set_active(true);
+        communication_button.toggled.connect((button) => {
+            toggle_communication_visibility(button.get_active());
+        });
         header_bar.pack_end(communication_button);
+
+        // Bouton pour afficher/masquer la zone d'édition
+        editor_button = new ToggleButton();
+        editor_button.set_icon_name("text-editor-symbolic");
+        editor_button.set_tooltip_text("Afficher/Masquer la zone d'édition");
+        editor_button.set_active(true);
+        editor_button.toggled.connect((button) => {
+            toggle_editor_visibility(button.get_active());
+        });
+        header_bar.pack_end(editor_button);
 
         // Menu hamburger à droite
         var menu_button = new MenuButton();
@@ -252,6 +268,60 @@ public class MainWindow : Adw.ApplicationWindow {
             // Cela déclenche déjà la logique via le signal toggled du bouton
         });
         this.add_action(toggle_communication_action);
+
+        var toggle_editor_action = new SimpleAction("toggle-editor", null);
+        toggle_editor_action.activate.connect(() => {
+            editor_button.set_active(!editor_button.get_active());
+            // Cela déclenche déjà la logique via le signal toggled du bouton
+        });
+        this.add_action(toggle_editor_action);
+    }
+
+    // === Gestion de la visibilité de la zone d'édition ===
+    private void toggle_editor_visibility(bool show) {
+        editor_visible = show;
+        
+        if (editor_notebook == null) return;
+        
+        if (show) {
+            editor_notebook.set_visible(true);
+            // Restaurer la position du paned si nécessaire
+            if (!use_detached_explorer && top_paned != null) {
+                top_paned.set_end_child(editor_notebook);
+            }
+        } else {
+            editor_notebook.set_visible(false);
+            // Si on masque l'éditeur, on peut agrandir l'explorateur ou la communication
+            if (!use_detached_explorer && top_paned != null && explorer_view != null) {
+                // L'explorateur prend toute la place du haut
+                top_paned.set_end_child(null);
+            }
+        }
+        
+        // Sauvegarder l'état
+        var config = controller.get_config_manager();
+        config.set_boolean("Window", "editor_visible", show);
+        config.save();
+    }
+
+    // === Gestion de la visibilité de la zone de communication ===
+    private void toggle_communication_visibility(bool show) {
+        communication_visible = show;
+        
+        if (communication_view == null || main_paned == null) return;
+        
+        if (show) {
+            communication_view.set_visible(true);
+            main_paned.set_end_child(communication_view);
+        } else {
+            communication_view.set_visible(false);
+            main_paned.set_end_child(null);
+        }
+        
+        // Sauvegarder l'état
+        var config = controller.get_config_manager();
+        config.set_boolean("Window", "communication_visible", show);
+        config.save();
     }
 
     private GLib.MenuModel build_app_menu() {
@@ -276,6 +346,7 @@ public class MainWindow : Adw.ApplicationWindow {
         view_menu.append(_("Mode sombre"), "win.dark-mode");
         // AJOUT ICI :
         view_menu.append(_("Afficher/Masquer l'explorateur"), "win.toggle-explorer");
+        view_menu.append(_("Afficher/Masquer l'éditeur"), "win.toggle-editor");
         view_menu.append(_("Afficher/Masquer la communication"), "win.toggle-communication");
 
         var tools_menu = new GLib.Menu();
@@ -302,8 +373,11 @@ public class MainWindow : Adw.ApplicationWindow {
     private void connect_signals() {
         explorer_button.toggled.connect((button) => {
             controller.toggle_explorer_visibility(button.get_active());
+            // Sauvegarder l'état de l'explorateur
+            var config = controller.get_config_manager();
+            config.set_boolean("Window", "explorer_visible", button.get_active());
+            config.save();
         });
-        communication_button.toggled.connect(on_communication_toggle);
 
         this.close_request.connect(on_close_request);
 
@@ -326,14 +400,6 @@ public class MainWindow : Adw.ApplicationWindow {
                 main_paned.set_position(max_top_height);
             }
         });
-    }
-
-    private void on_communication_toggle(ToggleButton button) {
-        if (button.active) {
-            communication_view.show();
-        } else {
-            communication_view.hide();
-        }
     }
 
     public void set_integrated_explorer_visible(bool show) {
@@ -593,12 +659,26 @@ public class MainWindow : Adw.ApplicationWindow {
         width = int.max(width, 600);
         height = int.max(height, 450);
         this.set_default_size(width, height);
-        bool show_explorer = true;
+        
+        // Restaurer l'état de l'explorateur
+        bool show_explorer = config.get_boolean("Window", "explorer_visible", true);
+        explorer_button.set_active(show_explorer);
         Timeout.add(50, () => {
             controller.toggle_explorer_visibility(show_explorer);
             return false;
         });
         update_explorer_button_state(show_explorer);
+        
+        // Restaurer l'état de la zone d'édition
+        bool show_editor = config.get_boolean("Window", "editor_visible", true);
+        editor_button.set_active(show_editor);
+        toggle_editor_visibility(show_editor);
+        
+        // Restaurer l'état de la zone de communication
+        bool show_communication = config.get_boolean("Window", "communication_visible", true);
+        communication_button.set_active(show_communication);
+        toggle_communication_visibility(show_communication);
+        
         if (!use_detached_explorer) {
             int main_position = config.get_integer("Window", "main_paned_position", 280);
             int editor_comm_position = config.get_integer("Window", "editor_comm_paned_position", 500);
