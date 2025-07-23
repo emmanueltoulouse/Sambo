@@ -834,50 +834,61 @@ namespace Sambo {
          * Gestionnaire du bouton d'annulation de génération
          */
         private void on_cancel_generation_clicked() {
-            // Marquer la génération comme annulée
-            is_generation_cancelled = true;
+            stderr.printf("🔍 ChatView.on_cancel_generation_clicked: DÉBUT\n");
+            
+            try {
+                // Marquer la génération comme annulée
+                is_generation_cancelled = true;
 
-            // Arrêter le chronomètre en cas d'annulation
-            var parent_widget = this.get_parent();
-            while (parent_widget != null && !(parent_widget is CommunicationView)) {
-                parent_widget = parent_widget.get_parent();
-            }
-            if (parent_widget is CommunicationView) {
-                ((CommunicationView)parent_widget).stop_execution_timer();
-            }
-
-            // Annuler dans le ModelManager
-            var model_manager = controller.get_model_manager();
-            model_manager.cancel_generation();
-
-            // Forcer la mise à jour de l'état immédiatement
-            force_unlock_ui();
-
-            // Marquer le message AI actuel comme annulé
-            if (current_ai_message != null) {
-                current_ai_message.content = "⏹️ Génération annulée par l'utilisateur";
-                if (current_ai_bubble != null) {
-                    current_ai_bubble.update_content();
+                // Arrêter le chronomètre en cas d'annulation
+                var parent_widget = this.get_parent();
+                while (parent_widget != null && !(parent_widget is CommunicationView)) {
+                    parent_widget = parent_widget.get_parent();
                 }
+                if (parent_widget is CommunicationView) {
+                    ((CommunicationView)parent_widget).stop_execution_timer();
+                }
+
+                // Forcer la mise à jour de l'état AVANT d'annuler
+                force_unlock_ui();
+
+                // Marquer le message AI actuel comme annulé
+                if (current_ai_message != null) {
+                    current_ai_message.content = "⏹️ Génération annulée par l'utilisateur";
+                    if (current_ai_bubble != null) {
+                        current_ai_bubble.update_content();
+                    }
+                }
+
+                show_toast("⏹️ Génération annulée");
+
+                // Annuler dans le ModelManager APRÈS avoir mis à jour l'UI
+                // Avec protection contre les exceptions
+                try {
+                    var model_manager = controller.get_model_manager();
+                    if (model_manager != null) {
+                        stderr.printf("🔍 ChatView: Appel cancel_generation\n");
+                        model_manager.cancel_generation();
+                        stderr.printf("🔍 ChatView: cancel_generation terminé\n");
+                    }
+                } catch (Error e) {
+                    stderr.printf("❌ ChatView: Erreur lors de l'annulation: %s\n", e.message);
+                    // Continuer le traitement même en cas d'erreur
+                }
+
+                // Sécurité supplémentaire avec délai
+                Timeout.add(500, () => {
+                    force_unlock_ui();
+                    return false;
+                });
+
+            } catch (Error e) {
+                stderr.printf("❌ ChatView.on_cancel_generation_clicked: Erreur critique: %s\n", e.message);
+                // En cas d'erreur critique, forcer le débloquage
+                force_unlock_ui();
             }
-
-            show_toast("⏹️ Génération annulée");
-
-            // Triple sécurité pour s'assurer que l'interface est débloquée
-            Timeout.add(100, () => {
-                force_unlock_ui();
-                return false;
-            });
-
-            Timeout.add(500, () => {
-                force_unlock_ui();
-                return false;
-            });
-
-            Timeout.add(1000, () => {
-                force_unlock_ui();
-                return false;
-            });
+            
+            stderr.printf("🔍 ChatView.on_cancel_generation_clicked: FIN\n");
         }
 
         /**

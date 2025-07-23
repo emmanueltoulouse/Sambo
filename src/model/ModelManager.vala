@@ -921,40 +921,53 @@ Cette réponse est générée en mode simulation car llama.cpp n'est pas disponi
          * Annule la génération en cours
          */
         public void cancel_generation() {
-            is_generation_cancelled = true;
+            stderr.printf("🔍 ModelManager.cancel_generation: DÉBUT\n");
+            
+            try {
+                is_generation_cancelled = true;
 
-            // Arrêter la génération llama.cpp si elle est en cours
-            if (!is_simulation_mode) {
-                Llama.stop_generation();
-
-                // Forcer le nettoyage du modèle et recharger pour s'assurer que le processus s'arrête
-                try {
-                    string current_model = current_model_path;
-                    Llama.unload_model();
-                    Thread.usleep(100000); // 100ms
-                    if (current_model != "") {
-                        Llama.load_model(current_model);
+                // Arrêter la génération llama.cpp si elle est en cours
+                if (!is_simulation_mode) {
+                    stderr.printf("🔍 ModelManager: Appel Llama.stop_generation\n");
+                    try {
+                        Llama.stop_generation();
+                        stderr.printf("🔍 ModelManager: Llama.stop_generation terminé\n");
+                    } catch (Error e) {
+                        stderr.printf("❌ ModelManager: Erreur lors de l'arrêt llama: %s\n", e.message);
                     }
-                } catch (Error e) {
-                    stderr.printf("⚠️ MODELMANAGER: Erreur lors du rechargement: %s\n", e.message);
+
+                    // SUPPRESSION du rechargement forcé qui peut causer des crashes
+                    // Cette opération est trop agressive et peut faire planter l'application
+                    // Le simple arrêt de génération devrait suffire
+                    
+                    // Attendre un court délai pour que l'arrêt soit effectif
+                    Thread.usleep(50000); // 50ms seulement
+                    
+                } else {
+                    stderr.printf("🔍 ModelManager: Mode simulation - arrêt simple\n");
                 }
 
-                // En cas d'urgence, utiliser le script de nettoyage
-                Timeout.add(2000, () => {
-                    try {
-                        string script_path = Path.build_filename(Environment.get_current_dir(), "scripts", "kill_llama.sh");
-                        Process.spawn_command_line_sync(script_path);
-                    } catch (Error e) {
-                        stderr.printf("⚠️ MODELMANAGER: Erreur lors du nettoyage d'urgence: %s\n", e.message);
-                    }
-                    return false;
-                });
+                // Marquer le thread comme terminé
+                current_generation_thread = null;
+
+                stderr.printf("🔍 ModelManager: Émission signal generation_cancelled\n");
+                generation_cancelled.emit();
+                
+            } catch (Error e) {
+                stderr.printf("❌ ModelManager.cancel_generation: Erreur critique: %s\n", e.message);
+                // Même en cas d'erreur, nettoyer l'état
+                is_generation_cancelled = true;
+                current_generation_thread = null;
+                
+                // Émettre le signal même en cas d'erreur pour débloquer l'UI
+                try {
+                    generation_cancelled.emit();
+                } catch (Error emit_error) {
+                    stderr.printf("❌ ModelManager: Impossible d'émettre le signal: %s\n", emit_error.message);
+                }
             }
-
-            // Marquer le thread comme terminé
-            current_generation_thread = null;
-
-            generation_cancelled.emit();
+            
+            stderr.printf("🔍 ModelManager.cancel_generation: FIN\n");
         }
 
         /**
