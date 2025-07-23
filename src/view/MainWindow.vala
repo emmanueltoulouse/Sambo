@@ -57,13 +57,8 @@ public class MainWindow : Adw.ApplicationWindow {
         setup_actions();
         connect_signals();
 
-        // Restaurer la fenêtre au démarrage
-        this.map.connect(() => {
-            Timeout.add(100, () => {
-                restore_window_state();
-                return false;
-            });
-        });
+        // Restaurer immédiatement l'état de la fenêtre
+        restore_window_state();
     }
 
     // === UI ===
@@ -77,13 +72,13 @@ public class MainWindow : Adw.ApplicationWindow {
         explorer_button = new ToggleButton();
         explorer_button.set_icon_name("folder-symbolic");
         explorer_button.set_tooltip_text("Afficher/Masquer l'explorateur");
-        explorer_button.set_active(true);
+        // Ne pas définir d'état initial - sera géré par restore_window_state()
         header_bar.pack_start(explorer_button);
 
         editor_button = new ToggleButton();
         editor_button.set_icon_name("text-editor-symbolic");
         editor_button.set_tooltip_text("Afficher/Masquer la zone d'édition");
-        editor_button.set_active(true);
+        // Ne pas définir d'état initial - sera géré par restore_window_state()
         editor_button.toggled.connect((button) => {
             toggle_editor_visibility(button.get_active());
         });
@@ -92,7 +87,7 @@ public class MainWindow : Adw.ApplicationWindow {
         communication_button = new ToggleButton();
         communication_button.set_icon_name("mail-message-new-symbolic");
         communication_button.set_tooltip_text("Afficher/Masquer la zone de communication");
-        communication_button.set_active(true);
+        // Ne pas définir d'état initial - sera géré par restore_window_state()
         communication_button.toggled.connect((button) => {
             toggle_communication_visibility(button.get_active());
         });
@@ -742,40 +737,55 @@ public class MainWindow : Adw.ApplicationWindow {
         height = int.max(height, 450);
         this.set_default_size(width, height);
         
-        // Restaurer l'état de l'explorateur
+        // Restaurer les états des zones SANS déclencher les signaux
         bool show_explorer = config.get_boolean("Window", "explorer_visible", true);
+        bool show_editor = config.get_boolean("Window", "editor_visible", true);
+        bool show_communication = config.get_boolean("Window", "communication_visible", true);
+        
+        // Mettre à jour les variables d'état
         explorer_visible = show_explorer;
+        editor_visible = show_editor;
+        communication_visible = show_communication;
+        
+        // Mettre à jour l'état des boutons SANS déclencher les signaux
         explorer_button.set_active(show_explorer);
+        editor_button.set_active(show_editor);
+        communication_button.set_active(show_communication);
+        
+        // Appliquer la visibilité initiale des widgets
+        if (explorer_view != null) {
+            explorer_view.set_visible(show_explorer);
+        }
+        if (editor_notebook != null) {
+            editor_notebook.set_visible(show_editor);
+        }
+        if (communication_view != null) {
+            communication_view.set_visible(show_communication);
+        }
+        
+        // Configurer l'explorateur avec le controller
         Timeout.add(50, () => {
             controller.toggle_explorer_visibility(show_explorer);
             return false;
         });
-        update_explorer_button_state(show_explorer);
         
-        // Restaurer l'état de la zone d'édition
-        bool show_editor = config.get_boolean("Window", "editor_visible", true);
-        editor_visible = show_editor;
-        editor_button.set_active(show_editor);
-        toggle_editor_visibility(show_editor);
-        
-        // Restaurer l'état de la zone de communication
-        bool show_communication = config.get_boolean("Window", "communication_visible", true);
-        communication_visible = show_communication;
-        communication_button.set_active(show_communication);
-        toggle_communication_visibility(show_communication);
-        
+        // Restaurer les positions des panneaux
         if (!use_detached_explorer) {
             int main_position = config.get_integer("Window", "main_paned_position", 280);
             int editor_comm_position = config.get_integer("Window", "editor_comm_paned_position", 500);
-            Timeout.add(150, () => {
+            Timeout.add(100, () => {
                 if (main_paned != null) main_paned.set_position(editor_comm_position);
                 if (top_paned != null) top_paned.set_position(main_position);
+                // Appliquer le layout adaptatif après la restauration complète
+                update_adaptive_layout();
                 return false;
             });
         } else {
             int editor_comm_position = config.get_integer("Window", "editor_comm_paned_position", 500);
-            Timeout.add(150, () => {
+            Timeout.add(100, () => {
                 if (main_paned != null) main_paned.set_position(editor_comm_position);
+                // Appliquer le layout adaptatif après la restauration complète
+                update_adaptive_layout();
                 return false;
             });
         }
