@@ -34,6 +34,9 @@ public class MainWindow : Adw.ApplicationWindow {
     private bool explorer_visible = true;
     private bool editor_visible = true;
     private bool communication_visible = true;
+    private bool layout_updating = false; // Évite les appels récursifs
+    private bool configuration_applied = false; // Flag pour éviter les applications multiples
+    private bool initializing = true; // Flag pour éviter la sauvegarde pendant l'initialisation
 
     public signal void file_opened(string path);
     public signal void directory_changed(string path);
@@ -57,8 +60,17 @@ public class MainWindow : Adw.ApplicationWindow {
         setup_actions();
         connect_signals();
 
-        // Restaurer immédiatement l'état de la fenêtre
-        restore_window_state();
+        // Connexion au signal map pour appliquer la configuration quand l'interface est prête
+        this.map.connect(() => {
+            if (!configuration_applied) {
+                stderr.printf("🎯 INIT: Interface mappée, application différée de la configuration\n");
+                // Utiliser Idle.add pour reporter l'application après le rendu complet
+                GLib.Idle.add(() => {
+                    apply_saved_configuration();
+                    return false; // Ne pas répéter
+                });
+            }
+        });
     }
 
     // === UI ===
@@ -72,25 +84,22 @@ public class MainWindow : Adw.ApplicationWindow {
         explorer_button = new ToggleButton();
         explorer_button.set_icon_name("folder-symbolic");
         explorer_button.set_tooltip_text("Afficher/Masquer l'explorateur");
-        // Ne pas définir d'état initial - sera géré par restore_window_state()
+        // État par défaut visible, signaux connectés après configuration
+        explorer_button.set_active(true);
         header_bar.pack_start(explorer_button);
 
         editor_button = new ToggleButton();
         editor_button.set_icon_name("text-editor-symbolic");
         editor_button.set_tooltip_text("Afficher/Masquer la zone d'édition");
-        // Ne pas définir d'état initial - sera géré par restore_window_state()
-        editor_button.toggled.connect((button) => {
-            toggle_editor_visibility(button.get_active());
-        });
+        // État par défaut visible, signaux connectés après configuration
+        editor_button.set_active(true);
         header_bar.pack_start(editor_button);
 
         communication_button = new ToggleButton();
         communication_button.set_icon_name("mail-message-new-symbolic");
         communication_button.set_tooltip_text("Afficher/Masquer la zone de communication");
-        // Ne pas définir d'état initial - sera géré par restore_window_state()
-        communication_button.toggled.connect((button) => {
-            toggle_communication_visibility(button.get_active());
-        });
+        // État par défaut visible, signaux connectés après configuration
+        communication_button.set_active(true);
         header_bar.pack_start(communication_button);
 
         // Menu hamburger à droite
@@ -302,101 +311,145 @@ public class MainWindow : Adw.ApplicationWindow {
      */
     private void update_adaptive_layout() {
         if (use_detached_explorer || main_paned == null || top_paned == null) return;
+        
+        // Éviter les appels récursifs
+        if (layout_updating) return;
+        layout_updating = true;
 
         // Vérifier l'état actuel des zones
         bool explorer_shown = explorer_visible && explorer_view != null;
         bool editor_shown = editor_visible && editor_notebook != null;
         bool communication_shown = communication_visible && communication_view != null;
 
-        // D'abord, retirer tous les widgets de leurs parents actuels
-        if (explorer_view != null && explorer_view.get_parent() != null) {
-            explorer_view.unparent();
-        }
-        if (editor_notebook != null && editor_notebook.get_parent() != null) {
-            editor_notebook.unparent();
-        }
-        if (communication_view != null && communication_view.get_parent() != null) {
-            communication_view.unparent();
-        }
-        if (top_paned.get_parent() != null) {
-            top_paned.unparent();
-        }
+        // Debug
+        stderr.printf("🔧 LAYOUT: explorer=%s, editor=%s, communication=%s\n", 
+            explorer_shown ? "VISIBLE" : "MASQUÉ",
+            editor_shown ? "VISIBLE" : "MASQUÉ", 
+            communication_shown ? "VISIBLE" : "MASQUÉ");
 
-        // Ensuite, reconstruire le layout en fonction de la visibilité
+        // NOUVELLE APPROCHE : Configuration directe avec force de recalcul
+        
         if (!explorer_shown && !editor_shown && communication_shown) {
-            // Seule la zone de chat est visible - elle prend toute la largeur
-            main_paned.set_start_child(null);
+            // Chat seul - configuration directe
+            stderr.printf("🔧 LAYOUT: Mode CHAT SEUL\n");
+            if (top_paned.get_parent() == main_paned) main_paned.set_start_child(null);
             main_paned.set_end_child(communication_view);
-            communication_view.set_visible(true);
+            if (communication_view != null) communication_view.set_visible(true);
+            if (top_paned != null) top_paned.set_visible(false);
+            
         } else if (!explorer_shown && editor_shown && communication_shown) {
-            // Seuls l'éditeur et le chat sont visibles
-            main_paned.set_start_child(editor_notebook);
-            main_paned.set_end_child(communication_view);
-            editor_notebook.set_visible(true);
-            communication_view.set_visible(true);
+            // Éditeur + Chat - configuration directe
+            stderr.printf("🔧 LAYOUT: Mode EDITEUR + CHAT\n");
+            
+            // Détacher editor_notebook seulement si nécessaire
+            if (editor_notebook.get_parent() != main_paned) {
+                if (editor_notebook.get_parent() != null) {
+                    editor_notebook.unparent();
+                }
+                main_paned.set_start_child(editor_notebook);
+            }
+            
+            // Détacher communication_view seulement si nécessaire  
+            if (communication_view.get_parent() != main_paned) {
+                if (communication_view.get_parent() != null) {
+                    communication_view.unparent();
+                }
+                main_paned.set_end_child(communication_view);
+            }
+            
+            if (editor_notebook != null) editor_notebook.set_visible(true);
+            if (communication_view != null) communication_view.set_visible(true);
+            if (top_paned != null) top_paned.set_visible(false);
+            
         } else if (explorer_shown && !editor_shown && communication_shown) {
-            // Seuls l'explorateur et le chat sont visibles
+            // Explorateur + Chat
+            stderr.printf("🔧 LAYOUT: Mode EXPLORATEUR + CHAT\n");
             main_paned.set_start_child(explorer_view);
             main_paned.set_end_child(communication_view);
-            explorer_view.set_visible(true);
-            communication_view.set_visible(true);
+            if (explorer_view != null) explorer_view.set_visible(true);
+            if (communication_view != null) communication_view.set_visible(true);
+            if (top_paned != null) top_paned.set_visible(false);
+            
         } else if (explorer_shown || editor_shown) {
-            // Au moins une des zones supérieures est visible - layout normal
+            // Layout normal avec top_paned
+            stderr.printf("🔧 LAYOUT: Mode NORMAL avec top_paned\n");
             main_paned.set_start_child(top_paned);
-            
-            // Configurer le top_paned
-            if (explorer_shown && editor_shown) {
-                // Les deux sont visibles
-                top_paned.set_start_child(explorer_view);
-                top_paned.set_end_child(editor_notebook);
-                explorer_view.set_visible(true);
-                editor_notebook.set_visible(true);
-            } else if (explorer_shown) {
-                // Seul l'explorateur est visible
-                top_paned.set_start_child(explorer_view);
-                top_paned.set_end_child(null);
-                explorer_view.set_visible(true);
-                if (editor_notebook != null) {
-                    editor_notebook.set_visible(false);
-                }
-            } else if (editor_shown) {
-                // Seul l'éditeur est visible  
-                top_paned.set_start_child(null);
-                top_paned.set_end_child(editor_notebook);
-                editor_notebook.set_visible(true);
-                if (explorer_view != null) {
-                    explorer_view.set_visible(false);
-                }
-            }
-            
-            // Configurer la zone de communication
             if (communication_shown) {
                 main_paned.set_end_child(communication_view);
-                communication_view.set_visible(true);
             } else {
                 main_paned.set_end_child(null);
-                if (communication_view != null) {
-                    communication_view.set_visible(false);
-                }
             }
+            
+            // Configuration du top_paned
+            if (explorer_shown && editor_shown) {
+                top_paned.set_start_child(explorer_view);
+                top_paned.set_end_child(editor_notebook);
+            } else if (explorer_shown) {
+                top_paned.set_start_child(explorer_view);
+                top_paned.set_end_child(null);
+            } else if (editor_shown) {
+                top_paned.set_start_child(null);
+                top_paned.set_end_child(editor_notebook);
+            }
+            
+            // Visibilité
+            if (top_paned != null) top_paned.set_visible(true);
+            if (explorer_view != null) explorer_view.set_visible(explorer_shown);
+            if (editor_notebook != null) editor_notebook.set_visible(editor_shown);
+            if (communication_view != null) communication_view.set_visible(communication_shown);
+            
         } else {
-            // Aucune zone n'est visible - afficher au moins l'éditeur
+            // Fallback - au moins l'éditeur
+            stderr.printf("🔧 LAYOUT: Mode FALLBACK\n");
             main_paned.set_start_child(editor_notebook);
             main_paned.set_end_child(null);
-            if (editor_notebook != null) {
-                editor_notebook.set_visible(true);
-            }
+            if (editor_notebook != null) editor_notebook.set_visible(true);
             editor_visible = true;
-            editor_button.set_active(true);
-            
-            // Masquer les autres zones
-            if (explorer_view != null) {
-                explorer_view.set_visible(false);
-            }
-            if (communication_view != null) {
-                communication_view.set_visible(false);
+            if (editor_button != null) editor_button.set_active(true);
+        }
+        
+        // FORCER le recalcul GTK4
+        if (main_paned != null) {
+            main_paned.queue_resize();
+            main_paned.queue_allocate();
+        }
+        if (top_paned != null && top_paned.get_visible()) {
+            top_paned.queue_resize();
+            top_paned.queue_allocate();
+        }
+        
+        // Forcer le rafraîchissement de l'éditeur
+        if (editor_notebook != null && editor_shown) {
+            editor_notebook.queue_resize();
+            editor_notebook.queue_allocate();
+            // Forcer le rafraîchissement de tous les onglets d'éditeur
+            for (int i = 0; i < editor_tabs.size; i++) {
+                var editor = editor_tabs[i];
+                if (editor != null) {
+                    editor.queue_resize();
+                    editor.queue_allocate();
+                }
             }
         }
+        
+        this.queue_resize();
+        
+        // Libérer le verrou
+        layout_updating = false;
+        
+        // Forcer un rafraîchissement différé pour s'assurer que le layout est correct
+        Idle.add(() => {
+            if (editor_notebook != null && editor_shown) {
+                editor_notebook.queue_draw();
+                for (int i = 0; i < editor_tabs.size; i++) {
+                    var editor = editor_tabs[i];
+                    if (editor != null) {
+                        editor.queue_draw();
+                    }
+                }
+            }
+            return false; // Ne pas répéter
+        });
     }
 
     private GLib.MenuModel build_app_menu() {
@@ -467,6 +520,8 @@ public class MainWindow : Adw.ApplicationWindow {
             if (editor_comm_paned.get_position() > max_editor_height) {
                 editor_comm_paned.set_position(max_editor_height);
             }
+            // Sauvegarder automatiquement la position
+            save_paned_positions();
         });
 
         main_paned.notify["position"].connect(() => {
@@ -477,6 +532,8 @@ public class MainWindow : Adw.ApplicationWindow {
             if (main_paned.get_position() > max_top_height) {
                 main_paned.set_position(max_top_height);
             }
+            // Sauvegarder automatiquement la position
+            save_paned_positions();
         });
     }
 
@@ -716,17 +773,245 @@ public class MainWindow : Adw.ApplicationWindow {
         return true;
     }
 
+    private void restore_paned_positions() {
+        var config = controller.get_config_manager();
+        
+        if (!use_detached_explorer) {
+            int top_position = config.get_integer("Window", "top_paned_position", 280);
+            int main_position = config.get_integer("Window", "main_paned_position", 500);
+            
+            if (top_paned != null && top_paned.get_visible()) {
+                // Attendre que le layout soit stable avant de restaurer
+                GLib.Timeout.add(50, () => {
+                    if (top_paned.get_visible()) {
+                        top_paned.set_position(top_position);
+                        stderr.printf("🔧 RESTORE: top_paned position restaurée: %d\n", top_position);
+                    }
+                    return false;
+                });
+            }
+            
+            if (main_paned != null) {
+                // Restaurer la position du main_paned avec plusieurs tentatives
+                GLib.Timeout.add(100, () => {
+                    // Vérifier que les deux zones sont visibles
+                    bool editor_ready = editor_visible && editor_notebook != null && editor_notebook.get_visible();
+                    bool comm_ready = communication_visible && communication_view != null && communication_view.get_visible();
+                    
+                    if (editor_ready && comm_ready) {
+                        main_paned.set_position(main_position);
+                        stderr.printf("🔧 RESTORE: main_paned position restaurée: %d (editor:%s, comm:%s)\n", 
+                            main_position, editor_ready ? "OK" : "NON", comm_ready ? "OK" : "NON");
+                    } else {
+                        stderr.printf("🔧 RESTORE: Attente des widgets (editor:%s, comm:%s)\n", 
+                            editor_ready ? "OK" : "NON", comm_ready ? "OK" : "NON");
+                    }
+                    return false;
+                });
+            }
+        } else {
+            int main_position = config.get_integer("Window", "main_paned_position", 500);
+            if (main_paned != null) {
+                GLib.Timeout.add(100, () => {
+                    main_paned.set_position(main_position);
+                    stderr.printf("🔧 RESTORE: main_paned position restaurée (mode détaché): %d\n", main_position);
+                    return false;
+                });
+            }
+        }
+    }
+
+    private void save_paned_positions() {
+        // Ne pas sauvegarder pendant l'initialisation
+        if (initializing) {
+            stderr.printf("⏸️  SAVE: Sauvegarde ignorée (initialisation en cours)\n");
+            return;
+        }
+        
+        var config = controller.get_config_manager();
+        
+        // Sauvegarder position du top_paned (entre explorateur et éditeur)
+        if (top_paned != null && top_paned.get_visible()) {
+            int top_position = top_paned.get_position();
+            if (top_position > 50 && top_position < 800) { // Position raisonnable
+                config.set_integer("Window", "top_paned_position", top_position);
+                stderr.printf("💾 SAVE: top_paned position sauvée: %d\n", top_position);
+            }
+        }
+        
+        // Sauvegarder position du main_paned (entre éditeur et chat)
+        if (main_paned != null) {
+            int main_position = main_paned.get_position();
+            if (main_position > 100 && main_position < 1000) { // Position raisonnable
+                config.set_integer("Window", "main_paned_position", main_position);
+                stderr.printf("💾 SAVE: main_paned position sauvée: %d\n", main_position);
+            }
+        }
+        
+        config.save();
+    }
+
     private void save_window_state() {
         int width, height;
         this.get_default_size(out width, out height);
-        var main_position = top_paned != null ? top_paned.get_position() : 0;
-        var editor_comm_position = main_paned.get_position();
         var config = controller.get_config_manager();
         config.set_integer("Window", "width", width);
         config.set_integer("Window", "height", height);
-        config.set_integer("Window", "main_paned_position", main_position);
-        config.set_integer("Window", "editor_comm_paned_position", editor_comm_position);
-        config.save();
+        
+        // Sauvegarder les positions des paneds
+        save_paned_positions();
+    }
+
+    private void apply_saved_configuration() {
+        if (configuration_applied) {
+            stderr.printf("⚠️  INIT: Configuration déjà appliquée, ignorer\n");
+            return;
+        }
+        
+        stderr.printf("🎯 INIT: Application de la configuration sauvegardée\n");
+        
+        var config = controller.get_config_manager();
+        int width = config.get_integer("Window", "width", 800);
+        int height = config.get_integer("Window", "height", 600);
+        width = int.max(width, 600);
+        height = int.max(height, 450);
+        this.set_default_size(width, height);
+        
+        // Restaurer les états des zones
+        bool show_explorer = config.get_boolean("Window", "explorer_visible", true);
+        bool show_editor = config.get_boolean("Window", "editor_visible", true);
+        bool show_communication = config.get_boolean("Window", "communication_visible", true);
+        
+        // Mettre à jour les variables d'état
+        explorer_visible = show_explorer;
+        editor_visible = show_editor;
+        communication_visible = show_communication;
+        
+        // Debug
+        stderr.printf("🔧 CONFIG: explorer=%s, editor=%s, communication=%s\n", 
+            show_explorer ? "VISIBLE" : "MASQUÉ",
+            show_editor ? "VISIBLE" : "MASQUÉ", 
+            show_communication ? "VISIBLE" : "MASQUÉ");
+
+        // Mettre à jour l'état des boutons SANS déclencher les signaux
+        explorer_button.set_active(show_explorer);
+        editor_button.set_active(show_editor);
+        communication_button.set_active(show_communication);
+        
+        // Appliquer la visibilité initiale des widgets
+        if (explorer_view != null) {
+            explorer_view.set_visible(show_explorer);
+        }
+        if (editor_notebook != null) {
+            editor_notebook.set_visible(show_editor);
+        }
+        if (communication_view != null) {
+            communication_view.set_visible(show_communication);
+        }
+        
+        // Configurer l'explorateur avec le controller
+        controller.toggle_explorer_visibility(show_explorer);
+        
+        // Appliquer le layout adaptatif UNE SEULE FOIS
+        update_adaptive_layout();
+        
+        // Restaurer les positions des panneaux après le layout (différé)
+        Idle.add(() => {
+            restore_paned_positions();
+            return false; // Ne pas répéter
+        });
+        
+        // Restauration supplémentaire avec plus de délai pour s'assurer que tout est prêt
+        GLib.Timeout.add(500, () => {
+            restore_paned_positions();
+            // Marquer la fin de l'initialisation après la dernière restauration
+            GLib.Timeout.add(100, () => {
+                initializing = false;
+                stderr.printf("🏁 INIT: Initialisation terminée - sauvegarde automatique activée\n");
+                return false;
+            });
+            return false;
+        });
+        
+        // Debug des tailles après layout
+        GLib.Timeout.add(100, () => {
+            debug_widget_sizes();
+            return false;
+        });
+        
+        // MAINTENANT connecter les signaux des boutons
+        connect_toggle_signals();
+        
+        // Marquer la configuration comme appliquée
+        configuration_applied = true;
+        stderr.printf("✅ INIT: Configuration appliquée avec succès\n");
+    }
+    
+    private void debug_widget_sizes() {
+        stderr.printf("🔍 DEBUG TAILLES:\n");
+        
+        if (main_paned != null) {
+            var alloc = Gtk.Allocation();
+            main_paned.get_allocation(out alloc);
+            stderr.printf("  main_paned: %dx%d à (%d,%d), position=%d\n", 
+                alloc.width, alloc.height, alloc.x, alloc.y, main_paned.get_position());
+        }
+        
+        if (top_paned != null) {
+            var alloc = Gtk.Allocation();
+            top_paned.get_allocation(out alloc);
+            stderr.printf("  top_paned: %dx%d à (%d,%d), position=%d\n", 
+                alloc.width, alloc.height, alloc.x, alloc.y, top_paned.get_position());
+        }
+        
+        if (explorer_view != null) {
+            var alloc = Gtk.Allocation();
+            explorer_view.get_allocation(out alloc);
+            stderr.printf("  explorer: %dx%d à (%d,%d), visible=%s, parent=%s\n", 
+                alloc.width, alloc.height, alloc.x, alloc.y, 
+                explorer_view.get_visible() ? "OUI" : "NON",
+                explorer_view.get_parent() != null ? "OUI" : "NON");
+        }
+        
+        if (editor_notebook != null) {
+            var alloc = Gtk.Allocation();
+            editor_notebook.get_allocation(out alloc);
+            stderr.printf("  editor: %dx%d à (%d,%d), visible=%s, parent=%s\n", 
+                alloc.width, alloc.height, alloc.x, alloc.y, 
+                editor_notebook.get_visible() ? "OUI" : "NON",
+                editor_notebook.get_parent() != null ? "OUI" : "NON");
+        }
+        
+        if (communication_view != null) {
+            var alloc = Gtk.Allocation();
+            communication_view.get_allocation(out alloc);
+            stderr.printf("  communication: %dx%d à (%d,%d), visible=%s, parent=%s\n", 
+                alloc.width, alloc.height, alloc.x, alloc.y, 
+                communication_view.get_visible() ? "OUI" : "NON",
+                communication_view.get_parent() != null ? "OUI" : "NON");
+        }
+    }
+    
+    private void connect_toggle_signals() {
+        stderr.printf("🔗 INIT: Connexion des signaux utilisateur\n");
+        
+        explorer_button.toggled.connect((button) => {
+            if (configuration_applied) { // Ignorer les signaux pendant l'initialisation
+                controller.toggle_explorer_visibility(button.get_active());
+            }
+        });
+        
+        editor_button.toggled.connect((button) => {
+            if (configuration_applied) { // Ignorer les signaux pendant l'initialisation
+                toggle_editor_visibility(button.get_active());
+            }
+        });
+        
+        communication_button.toggled.connect((button) => {
+            if (configuration_applied) { // Ignorer les signaux pendant l'initialisation
+                toggle_communication_visibility(button.get_active());
+            }
+        });
     }
 
     private void restore_window_state() {
@@ -747,6 +1032,12 @@ public class MainWindow : Adw.ApplicationWindow {
         editor_visible = show_editor;
         communication_visible = show_communication;
         
+        // Debug
+        stderr.printf("🔧 RESTORE: explorer=%s, editor=%s, communication=%s\n", 
+            show_explorer ? "VISIBLE" : "MASQUÉ",
+            show_editor ? "VISIBLE" : "MASQUÉ", 
+            show_communication ? "VISIBLE" : "MASQUÉ");
+
         // Mettre à jour l'état des boutons SANS déclencher les signaux
         explorer_button.set_active(show_explorer);
         editor_button.set_active(show_editor);

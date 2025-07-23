@@ -357,6 +357,28 @@ namespace Sambo {
             // Réinitialiser le flag d'annulation
             is_generation_cancelled = false;
 
+            // Debug : forcer le mode réel temporairement
+            stderr.printf("[DEBUG] MODELMANAGER: is_simulation_mode=%s, is_model_loaded=%s\n", 
+                is_simulation_mode ? "true" : "false", is_model_loaded ? "true" : "false");
+
+            if (is_simulation_mode) {
+                stderr.printf("[DEBUG] MODELMANAGER: Tentative de sortir du mode simulation\n");
+                
+                // Essayer de revérifier si le modèle est chargé réellement
+                try {
+                    if (Llama.is_model_loaded()) {
+                        stderr.printf("[DEBUG] MODELMANAGER: Le modèle est en fait chargé ! Désactivation du mode simulation\n");
+                        is_simulation_mode = false;
+                    } else {
+                        stderr.printf("[DEBUG] MODELMANAGER: Le modèle n'est pas chargé, mode simulation justifié\n");
+                        return generate_simulated_response(prompt, params, (owned) callback);
+                    }
+                } catch (Error e) {
+                    stderr.printf("[DEBUG] MODELMANAGER: Erreur lors de la vérification: %s\n", e.message);
+                    return generate_simulated_response(prompt, params, (owned) callback);
+                }
+            }
+
             if (is_simulation_mode) {
                 return generate_simulated_response(prompt, params, (owned) callback);
             }

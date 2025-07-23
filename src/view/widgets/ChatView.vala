@@ -28,6 +28,10 @@ namespace Sambo {
         private ChatMessage? current_ai_message = null;
         private ChatBubbleRow? current_ai_bubble = null;
 
+        // Variables pour les statistiques de traitement
+        private int64 generation_start_time = 0;
+        private int token_count = 0;
+
         /**
          * Crée une nouvelle vue de chat
          */
@@ -518,6 +522,10 @@ namespace Sambo {
             current_ai_bubble = new ChatBubbleRow(current_ai_message);
             message_container.append(current_ai_bubble);
 
+            // Initialiser les statistiques de traitement
+            generation_start_time = get_monotonic_time();
+            token_count = 0;
+
             // Faire défiler vers le bas
             scroll_to_bottom();
 
@@ -609,6 +617,9 @@ namespace Sambo {
                     stderr.printf("[TRACE][OUT] CHATVIEW: Message mis à jour, appel update_content()\n");
                     current_ai_bubble.update_content();
 
+                    // Compter approximativement les tokens (estimation grossière)
+                    token_count = (int)(partial_response.length / 4.0); // ~4 caractères par token
+
                     // Faire défiler vers le bas pour suivre la génération
                     Idle.add(() => {
                         scroll_to_bottom();
@@ -617,6 +628,15 @@ namespace Sambo {
 
                     if (is_finished) {
                         stderr.printf("[TRACE][IN] CHATVIEW: Génération terminée - nettoyage\n");
+
+                        // Calculer la durée de traitement
+                        int64 generation_end_time = get_monotonic_time();
+                        double duration = (generation_end_time - generation_start_time) / 1000000.0; // en secondes
+
+                        // Mettre à jour les statistiques dans la bulle
+                        if (current_ai_bubble != null) {
+                            current_ai_bubble.update_processing_stats(token_count, duration);
+                        }
 
                         // Arrêter le chronomètre dans le CommunicationView
                         var parent_widget = this.get_parent();

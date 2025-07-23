@@ -16,6 +16,12 @@ namespace Sambo {
         public string content { get; set; }
         public DateTime timestamp { get; set; }
         public SenderType sender { get; set; }
+        
+        // Propriétés pour les statistiques de traitement
+        public int token_count { get; set; default = 0; }
+        public double processing_duration { get; set; default = 0.0; } // en secondes
+        public bool is_processing_complete { get; set; default = false; }
+        public DateTime? completion_time { get; set; default = null; } // Heure de fin de traitement
 
         /**
          * Crée un nouveau message
@@ -31,6 +37,54 @@ namespace Sambo {
          */
         public string get_formatted_time() {
             return timestamp.format("%H:%M");
+        }
+
+        /**
+         * Formate une durée en secondes au format hh:mm:ss
+         */
+        private string format_duration(double duration_seconds) {
+            int total_seconds = (int) Math.round(duration_seconds);
+            int hours = total_seconds / 3600;
+            int minutes = (total_seconds % 3600) / 60;
+            int seconds = total_seconds % 60;
+            
+            return "%02d:%02d:%02d".printf(hours, minutes, seconds);
+        }
+
+        /**
+         * Obtient les statistiques de traitement formatées pour l'affichage
+         */
+        public string get_formatted_stats() {
+            if (!is_processing_complete || sender == SenderType.USER) {
+                return timestamp.format("%H:%M");
+            }
+            
+            // Utiliser l'heure de fin de traitement si disponible, sinon l'heure du message
+            DateTime display_time = completion_time ?? timestamp;
+            string stats = display_time.format("%H:%M");
+            
+            if (token_count > 0) {
+                stats += " • %d tokens".printf(token_count);
+            }
+            if (processing_duration > 0) {
+                stats += " • " + format_duration(processing_duration);
+            }
+            
+            return stats;
+        }
+
+        /**
+         * Met à jour les statistiques de traitement
+         */
+        public void set_processing_stats(int tokens, double duration) {
+            this.token_count = tokens;
+            this.processing_duration = duration;
+            this.is_processing_complete = true;
+            this.completion_time = new DateTime.now_local(); // Enregistrer l'heure actuelle
+            notify_property("token_count");
+            notify_property("processing_duration");
+            notify_property("is_processing_complete");
+            notify_property("completion_time");
         }
 
         /**
