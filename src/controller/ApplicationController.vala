@@ -389,15 +389,22 @@ namespace Sambo {
 
         // Méthode dédiée pour le signal file_selected (logique pivot)
         private void on_file_selected_pivot(string path) {
+             stderr.printf("🔍 ApplicationController.on_file_selected_pivot: DÉBUT - Path: %s\n", path);
+
              try {
                  var converter_manager = DocumentConverterManager.get_instance();
                  PivotDocument? pivot_document = converter_manager.open_file_as_pivot(path);
+
+                 stderr.printf("🔍 ApplicationController.on_file_selected_pivot: Document pivot créé: %s\n",
+                     pivot_document != null ? "OUI" : "NON");
+
                  if (pivot_document != null) {
                  } else {
                  }
 
                  // Check main_window first, then attempt to get editor_view (temporarily using controller's placeholder)
                  if (main_window != null) {
+                     stderr.printf("🔍 ApplicationController.on_file_selected_pivot: Appel main_window.open_document_in_tab\n");
                      main_window.open_document_in_tab(pivot_document, path);
                  } else {
                      warning("DEBUG PIVOT: EditorView non disponible (main_window est null dans le contrôleur)!\n");
@@ -405,6 +412,8 @@ namespace Sambo {
              } catch (Error e) {
                  warning("DEBUG PIVOT: ERREUR - %s\n", e.message);
              }
+
+             stderr.printf("🔍 ApplicationController.on_file_selected_pivot: FIN\n");
         }
 
         /**
@@ -412,8 +421,12 @@ namespace Sambo {
          * Appelé par exemple par le dialogue d'ouverture de fichier de MainWindow.
          */
         public void handle_file_open_request(string path) {
+            stderr.printf("🔍 ApplicationController.handle_file_open_request: DÉBUT - Path: %s\n", path);
+
             // Appelle la méthode privée qui contient la logique pivot
             on_file_selected_pivot(path);
+
+            stderr.printf("🔍 ApplicationController.handle_file_open_request: FIN\n");
         }
 
         // Méthode pour que Application.vala puisse définir la référence à MainWindow

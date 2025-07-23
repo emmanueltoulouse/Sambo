@@ -188,6 +188,7 @@ namespace Sambo {
 
         public ExplorerView(ExplorerModel? model_param) {
             Object(orientation: Gtk.Orientation.VERTICAL, spacing: 0);
+            stderr.printf("🔍 ExplorerView.constructor: DÉBUT - Création d'ExplorerView\n");
 
             this.model = model_param;
 
@@ -226,6 +227,8 @@ namespace Sambo {
 
             // Charger le contenu initial
             refresh_directory_content();
+            
+            stderr.printf("🔍 ExplorerView.constructor: FIN - ExplorerView créé\n");
         }
 
         private void create_toolbar() {
@@ -365,10 +368,10 @@ namespace Sambo {
                 favorites_view.favorite_selected.connect((path) => {
                     navigate_to_directory(path);
                 });
-                
+
                 // Limiter la hauteur des favoris
                 favorites_view.set_size_request(-1, 150);
-                
+
                 this.append(favorites_view);
             }
         }
@@ -454,14 +457,22 @@ namespace Sambo {
                 var file_item = selection.get_selected_item() as FileItemModel;
                 if (file_item == null) return;
 
+                stderr.printf("🔍 ExplorerView.list_view.activate: DÉBUT - Fichier: %s, Type: %s\n", 
+                    file_item.path, file_item.is_directory() ? "DOSSIER" : "FICHIER");
+
                 if (file_item.is_directory()) {
+                    stderr.printf("🔍 ExplorerView: Navigation vers dossier: %s\n", file_item.path);
                     current_path = file_item.path;
                     if (model != null) model.navigate_to(file_item.path);
                     refresh_directory_content();
                     directory_changed(file_item.path);
                 } else {
+                    stderr.printf("🔍 ExplorerView: Émission signal file_selected pour: %s\n", file_item.path);
                     file_selected(file_item.path);
+                    stderr.printf("🔍 ExplorerView: Signal file_selected émis\n");
                 }
+                
+                stderr.printf("🔍 ExplorerView.list_view.activate: FIN\n");
             });
 
             // ScrolledWindow

@@ -190,7 +190,7 @@ public class BookmarksManager : Object {
 
                 while ((line = dis.read_line()) != null) {
                     line = line.strip();
-                    
+
                     if (line != "" && line.has_prefix("file://")) {
                         // Parser la ligne: "file:///path/to/folder Optional Name"
                         string[] parts = line.split(" ", 2);

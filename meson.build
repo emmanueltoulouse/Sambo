@@ -283,6 +283,10 @@ install_data('scripts/install_icon_and_desktop.sh',
 run_target('post-install',
            command: ['scripts/install_icon_and_desktop.sh'])
 
+# Cible pour installer l'icône système (nécessite sudo)
+run_target('install-system-icon',
+           command: ['sudo', 'scripts/install_icon_and_desktop.sh'])
+
 # Cible personnalisée pour traiter les icons
 run_target('update-icon-cache',
            command: [find_program('gtk4-update-icon-cache'), '-f', '-t',

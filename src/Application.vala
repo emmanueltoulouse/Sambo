@@ -30,6 +30,7 @@ namespace Sambo {
         private Gdk.Texture? custom_icon = null;
 
         public Application() {
+            stderr.printf("🔍 Application.constructor: DÉBUT - Application Sambo démarre\n");
             Object(
                 application_id: "com.cabineteto.Sambo",
                 flags: ApplicationFlags.FLAGS_NONE
@@ -47,6 +48,13 @@ namespace Sambo {
 
             // S'assurer que les ressources sont correctement initialisées
             ensure_resources();
+
+            // Ajouter le chemin des icônes aux ressources
+            Gtk.IconTheme.get_for_display(Gdk.Display.get_default())
+                .add_resource_path("/com/cabineteto/Sambo/icons");
+
+            // Définir l'icône par défaut pour toutes les fenêtres de l'application
+            Gtk.Window.set_default_icon_name("com.cabineteto.Sambo");
 
             // Charger les styles CSS
             load_css();
@@ -142,6 +150,9 @@ namespace Sambo {
                     .add_resource_path("/com/cabineteto/Sambo/icons");
                 // L'icône sera utilisée automatiquement par les fenêtres de l'application
             }
+
+            // S'assurer que l'icône par défaut est disponible
+            this.set_resource_base_path("/com/cabineteto/Sambo");
 
             // AJOUT: Appeler initialize pour charger les favoris, etc.
             controller.initialize();

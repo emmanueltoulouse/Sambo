@@ -320,15 +320,33 @@ namespace Sambo {
             // plus sophistiquée pour l'édition de tableau
         }
 
-        public void load_pivot_document(PivotDocument doc) {
-            this.pivot_doc = doc;
-            render_pivot_to_buffer(doc);
+        public void load_pivot_document(PivotDocument document) {
+            stderr.printf("🔍 WysiwygEditor.load_pivot_document: DÉBUT - Document: %s\n",
+                document != null ? "NON-NULL" : "NULL");
+
+            this.pivot_doc = document;
+            render_pivot_to_buffer(document);
+            buffer.set_modified(false);
+
+            stderr.printf("🔍 WysiwygEditor.load_pivot_document: FIN\n");
         }
 
         private void render_pivot_to_buffer(PivotDocument doc) {
+            stderr.printf("🔍 WysiwygEditor.render_pivot_to_buffer: DÉBUT\n");
+            stderr.printf("🔍 WysiwygEditor.render_pivot_to_buffer: Widget visible: %s, parent: %s\n", 
+                this.get_visible() ? "OUI" : "NON",
+                this.get_parent() != null ? "OUI" : "NON");
+
             buffer.set_text("", 0); // Vider le buffer
+            
+            stderr.printf("🔍 WysiwygEditor.render_pivot_to_buffer: APRÈS buffer.set_text - Widget visible: %s\n", 
+                this.get_visible() ? "OUI" : "NON");
+
+            stderr.printf("🔍 Buffer vidé - Enfants: %d\n",
+                doc != null && doc.children != null ? doc.children.size : 0);
 
             if (doc == null || doc.children.size == 0) {
+                stderr.printf("🔍 Document null ou sans enfants, sortie\n");
                 return; // Document vide
             }
 
@@ -388,8 +406,8 @@ namespace Sambo {
                             buffer.apply_tag(tag_strikethrough, seg_start, seg_end);
                         }
                         if (segment.has_format(TextFormatting.UNDERLINE)) {
-                            tag_underline = buffer.create_tag("underline", "underline", Pango.Underline.SINGLE);
-                            buffer.apply_tag(tag_underline, seg_start, seg_end);
+                            if (tag_underline != null)
+                                buffer.apply_tag(tag_underline, seg_start, seg_end);
                         }
                         if (segment.has_format(TextFormatting.CODE))
                             buffer.apply_tag(tag_code, seg_start, seg_end);
@@ -517,6 +535,8 @@ namespace Sambo {
                     buffer.insert(ref current_iter, "--- FIN TABLEAU ---\n\n", -1);
                 }
             }
+
+            stderr.printf("🔍 WysiwygEditor.render_pivot_to_buffer: FIN\n");
         }
 
         /**

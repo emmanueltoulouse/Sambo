@@ -166,6 +166,38 @@ public class MainWindow : Adw.ApplicationWindow {
         editor_notebook.append_page(default_editor, default_tab_box);
         editor_notebook.set_tab_reorderable(default_editor, true);
         editor_notebook.set_current_page(0);
+        
+        // Ajouter debug pour changements d'onglets
+        editor_notebook.notify["page"].connect(() => {
+            int current_page = editor_notebook.get_current_page();
+            stderr.printf("🔍 MainWindow.editor_notebook.page: Changement vers page %d\n", current_page);
+            if (current_page >= 0 && current_page < editor_tabs.size) {
+                var current_editor = editor_tabs[current_page];
+                stderr.printf("🔍 MainWindow.editor_notebook: Widgets de l'éditeur - toolbar_box: %s, wysiwyg_editor: %s, statusbar_box: %s\n", 
+                    current_editor.toolbar_box != null && current_editor.toolbar_box.get_visible() ? "OUI" : "NON",
+                    current_editor.wysiwyg_editor != null && current_editor.wysiwyg_editor.get_visible() ? "OUI" : "NON", 
+                    current_editor.statusbar_box != null && current_editor.statusbar_box.get_visible() ? "OUI" : "NON");
+            }
+        });
+        
+        // Debug pour les événements de redimensionnement de fenêtre
+        notify["default-width"].connect(() => {
+            stderr.printf("🔍 MainWindow: Redimensionnement largeur détecté\n");
+        });
+        
+        notify["default-height"].connect(() => {
+            stderr.printf("🔍 MainWindow: Redimensionnement hauteur détecté\n");
+        });
+        
+        // Debug pour les changements de visibilité de la fenêtre
+        notify["visible"].connect(() => {
+            stderr.printf("🔍 MainWindow: Changement de visibilité fenêtre: %s\n", get_visible() ? "VISIBLE" : "INVISIBLE");
+        });
+        
+        // Debug pour les changements de focus
+        notify["is-active"].connect(() => {
+            stderr.printf("🔍 MainWindow: Changement focus fenêtre: %s\n", is_active ? "ACTIVE" : "INACTIVE");
+        });
     }
 
     // === Actions et menus ===
@@ -513,27 +545,33 @@ public class MainWindow : Adw.ApplicationWindow {
         this.close_request.connect(on_close_request);
 
         editor_comm_paned.notify["position"].connect(() => {
+            stderr.printf("🔍 MainWindow.editor_comm_paned.position: DÉBUT - Position: %d\n", editor_comm_paned.get_position());
             int width, height;
             this.get_default_size(out width, out height);
             int min_comm_height = 150;
             int max_editor_height = height - min_comm_height;
             if (editor_comm_paned.get_position() > max_editor_height) {
+                stderr.printf("🔍 MainWindow.editor_comm_paned: Position limitée de %d à %d\n", editor_comm_paned.get_position(), max_editor_height);
                 editor_comm_paned.set_position(max_editor_height);
             }
             // Sauvegarder automatiquement la position
             save_paned_positions();
+            stderr.printf("🔍 MainWindow.editor_comm_paned.position: FIN\n");
         });
 
         main_paned.notify["position"].connect(() => {
+            stderr.printf("🔍 MainWindow.main_paned.position: DÉBUT - Position: %d\n", main_paned.get_position());
             int width, height;
             this.get_default_size(out width, out height);
             int min_comm_height = 150;
             int max_top_height = height - min_comm_height;
             if (main_paned.get_position() > max_top_height) {
+                stderr.printf("🔍 MainWindow.main_paned: Position limitée de %d à %d\n", main_paned.get_position(), max_top_height);
                 main_paned.set_position(max_top_height);
             }
             // Sauvegarder automatiquement la position
             save_paned_positions();
+            stderr.printf("🔍 MainWindow.main_paned.position: FIN\n");
         });
     }
 
@@ -553,6 +591,8 @@ public class MainWindow : Adw.ApplicationWindow {
 
     // === Gestion des onglets ===
     public void open_document_in_tab(Sambo.Document.PivotDocument doc, string file_path) {
+        stderr.printf("🔍 MainWindow.open_document_in_tab: DÉBUT - File: %s\n", file_path);
+
         int current_page = editor_notebook.get_current_page();
         bool is_empty_first_tab = false;
         if (current_page >= 0 && current_page < editor_tabs.size) {
@@ -562,12 +602,14 @@ public class MainWindow : Adw.ApplicationWindow {
 
         EditorView editor;
         if (is_empty_first_tab) {
+            stderr.printf("🔍 MainWindow.open_document_in_tab: Réutilisation onglet vide existant\n");
             editor = editor_tabs[current_page];
             editor.load_document(doc);
             var tab_box = create_tab_box(Path.get_basename(file_path), editor);
             editor_notebook.set_tab_label(editor_notebook.get_nth_page(current_page), tab_box);
             editor_notebook.set_tab_reorderable(editor, true);
         } else {
+            stderr.printf("🔍 MainWindow.open_document_in_tab: Création nouvel onglet\n");
             editor = new EditorView(controller);
             editor.load_document(doc);
             var tab_box = create_tab_box(Path.get_basename(file_path), editor);
@@ -584,6 +626,8 @@ public class MainWindow : Adw.ApplicationWindow {
         var page_num = editor_notebook.page_num(editor);
         var tab_label = editor_notebook.get_tab_label(editor);
         update_tab_appearance(editor, tab_label);
+
+        stderr.printf("🔍 MainWindow.open_document_in_tab: FIN\n");
     }
 
     private Box create_tab_box(string title, EditorView editor) {
