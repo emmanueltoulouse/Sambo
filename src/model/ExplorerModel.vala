@@ -191,7 +191,7 @@ namespace Sambo {
         }
 
         public Gee.List<File> get_bookmarks() {
-            return bookmarks_manager.get_bookmarks();
+            return bookmarks_manager.get_all_bookmarks();
         }
 
         public void update_bookmarks() {
@@ -434,6 +434,9 @@ namespace Sambo {
             // Utiliser le setter pour déclencher la notification si nécessaire au démarrage
             this.show_hidden_files = config_manager.get_boolean("Explorer", "show_hidden_files", false);
             // *** FIN NOUVEAU ***
+
+            // Charger les signets GNOME
+            bookmarks_manager.setup_gnome_monitor();
 
             // *** NOUVEAU : Charger l'état de la barre de recherche ***
             this.search_bar_enabled = config_manager.get_boolean("Explorer", "search_bar_enabled", true);
