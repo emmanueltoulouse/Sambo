@@ -358,12 +358,12 @@ namespace Sambo {
             is_generation_cancelled = false;
 
             // Debug : forcer le mode réel temporairement
-            stderr.printf("[DEBUG] MODELMANAGER: is_simulation_mode=%s, is_model_loaded=%s\n", 
+            stderr.printf("[DEBUG] MODELMANAGER: is_simulation_mode=%s, is_model_loaded=%s\n",
                 is_simulation_mode ? "true" : "false", is_model_loaded ? "true" : "false");
 
             if (is_simulation_mode) {
                 stderr.printf("[DEBUG] MODELMANAGER: Tentative de sortir du mode simulation\n");
-                
+
                 // Essayer de revérifier si le modèle est chargé réellement
                 try {
                     if (Llama.is_model_loaded()) {

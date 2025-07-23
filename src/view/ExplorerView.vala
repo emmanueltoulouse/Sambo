@@ -34,13 +34,16 @@ namespace Sambo {
      */
     public class FavoritesView : Gtk.Box {
         private ApplicationController controller;
+        private ExplorerModel? explorer_model;
+        private ListBox listbox;
 
         // Signal émis lorsqu'un favori est sélectionné
         public signal void favorite_selected(string path);
 
-        public FavoritesView(ApplicationController controller) {
+        public FavoritesView(ApplicationController controller, ExplorerModel? explorer_model) {
             Object(orientation: Orientation.VERTICAL, spacing: 6);
             this.controller = controller;
+            this.explorer_model = explorer_model;
 
             var label = new Label("Favoris");
             label.add_css_class("title-4");
@@ -49,7 +52,7 @@ namespace Sambo {
             var scroll = new ScrolledWindow();
             scroll.set_vexpand(true);
 
-            var listbox = new ListBox();
+            listbox = new ListBox();
             listbox.add_css_class("navigation-sidebar");
 
             scroll.set_child(listbox);
@@ -63,8 +66,44 @@ namespace Sambo {
          * Rafraîchit la liste des favoris
          */
         public void refresh_favorites() {
-            // À implémenter correctement selon la structure du modèle
-            // Cette implémentation est un placeholder
+            // Vider la liste actuelle
+            var child = listbox.get_first_child();
+            while (child != null) {
+                var next = child.get_next_sibling();
+                listbox.remove(child);
+                child = next;
+            }
+
+            // Récupérer les signets depuis le modèle
+            if (explorer_model != null) {
+                var bookmarks = explorer_model.get_bookmarks();
+
+                foreach (var bookmark in bookmarks) {
+                    create_bookmark_row(bookmark);
+                }
+            }
+        }        private void create_bookmark_row(File bookmark) {
+            var row = new ActionRow();
+            var basename = bookmark.get_basename();
+            var path = bookmark.get_path();
+
+            row.set_title(basename ?? "");
+            row.set_subtitle(path ?? "");
+
+            // Ajouter une icône de dossier
+            var icon = new Image.from_icon_name("folder-symbolic");
+            row.add_prefix(icon);
+
+            // Connecter le signal de clic
+            var gesture = new GestureClick();
+            gesture.released.connect((n_press, x, y) => {
+                if (path != null) {
+                    favorite_selected(path);
+                }
+            });
+            row.add_controller(gesture);
+
+            listbox.append(row);
         }
     }
 
@@ -137,6 +176,7 @@ namespace Sambo {
 
         // UI Components
         private Box toolbar;
+        private FavoritesView? favorites_view;
         private GLib.ListStore list_store;
         private ListView list_view;
         private Button ext_filter_button;
@@ -177,6 +217,9 @@ namespace Sambo {
 
             // Barre d'outils simplifiée
             create_toolbar();
+
+            // Section des favoris
+            create_favorites_section();
 
             // Liste des fichiers
             create_file_list();
@@ -314,6 +357,20 @@ namespace Sambo {
             });
 
             this.append(toolbar);
+        }
+
+        private void create_favorites_section() {
+            if (model != null) {
+                favorites_view = new FavoritesView(controller, model);
+                favorites_view.favorite_selected.connect((path) => {
+                    navigate_to_directory(path);
+                });
+                
+                // Limiter la hauteur des favoris
+                favorites_view.set_size_request(-1, 150);
+                
+                this.append(favorites_view);
+            }
         }
 
         private void create_file_list() {

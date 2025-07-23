@@ -130,6 +130,9 @@ namespace Sambo {
                 update_history();
             });
 
+            // Configurer la surveillance des signets GNOME
+            bookmarks_manager.setup_gnome_monitor();
+
             _initializing = false;
         }
 

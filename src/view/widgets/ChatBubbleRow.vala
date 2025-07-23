@@ -68,13 +68,13 @@ namespace Sambo {
             content_label.xalign = 0;
             content_label.max_width_chars = 40;
             content_label.add_css_class("bubble-text");
-            
+
             // Activer le markup Pango pour supporter les balises de formatage
             content_label.use_markup = true;
-            
+
             // Convertir le contenu Markdown en markup Pango
             string formatted_content = convert_markdown_to_pango(message.content ?? "");
-            stderr.printf("🎨 MARKDOWN: '%s' -> '%s'\n", 
+            stderr.printf("🎨 MARKDOWN: '%s' -> '%s'\n",
                 message.content ?? "(vide)", formatted_content);
             content_label.set_markup(formatted_content);
 
@@ -101,49 +101,49 @@ namespace Sambo {
             if (markdown_text == null || markdown_text.length == 0) {
                 return "";
             }
-            
+
             string result = markdown_text;
-            
+
             try {
                 // Échapper d'abord les caractères spéciaux XML
                 result = GLib.Markup.escape_text(result);
-                
+
                 // Titre 1 : # Texte -> <span size="x-large" weight="bold">Texte</span>
                 var h1_regex = new Regex("^# (.+)$", RegexCompileFlags.MULTILINE);
                 result = h1_regex.replace(result, -1, 0, "<span size=\"x-large\" weight=\"bold\">\\1</span>");
-                
+
                 // Titre 2 : ## Texte -> <span size="large" weight="bold">Texte</span>
                 var h2_regex = new Regex("^## (.+)$", RegexCompileFlags.MULTILINE);
                 result = h2_regex.replace(result, -1, 0, "<span size=\"large\" weight=\"bold\">\\1</span>");
-                
+
                 // Listes à puces AVANT italique : - element ou * element -> • element
                 var bullet_regex1 = new Regex("^- (.+)$", RegexCompileFlags.MULTILINE);
                 result = bullet_regex1.replace(result, -1, 0, "• \\1");
                 var bullet_regex2 = new Regex("^\\* (.+)$", RegexCompileFlags.MULTILINE);
                 result = bullet_regex2.replace(result, -1, 0, "• \\1");
-                
+
                 // Listes numérotées : 1. element -> 1. element (avec espacement)
                 var numbered_regex = new Regex("^([0-9]+)\\. (.+)$", RegexCompileFlags.MULTILINE);
                 result = numbered_regex.replace(result, -1, 0, "\\1. \\2");
-                
+
                 // Gras : **texte** ou __texte__ -> <b>texte</b>
                 var bold_regex1 = new Regex("\\*\\*([^*]+)\\*\\*");
                 result = bold_regex1.replace(result, -1, 0, "<b>\\1</b>");
                 var bold_regex2 = new Regex("__([^_]+)__");
                 result = bold_regex2.replace(result, -1, 0, "<b>\\1</b>");
-                
+
                 // Italique : *texte* ou _texte_ -> <i>texte</i> (après gras et listes pour éviter conflit)
                 var italic_regex1 = new Regex("\\*([^*]+)\\*");
                 result = italic_regex1.replace(result, -1, 0, "<i>\\1</i>");
                 var italic_regex2 = new Regex("_([^_]+)_");
                 result = italic_regex2.replace(result, -1, 0, "<i>\\1</i>");
-                
+
             } catch (RegexError e) {
                 stderr.printf("⚠️  CHATBUBBLEROW: Erreur regex lors de la conversion Markdown: %s\n", e.message);
                 // En cas d'erreur, retourner le texte original échappé
                 return GLib.Markup.escape_text(markdown_text);
             }
-            
+
             return result;
         }
 
@@ -191,9 +191,9 @@ namespace Sambo {
 
                 // Convertir le contenu Markdown en markup Pango
                 string formatted_content = convert_markdown_to_pango(message.content ?? "");
-                stderr.printf("🎨 MARKDOWN UPDATE: '%s' -> '%s'\n", 
+                stderr.printf("🎨 MARKDOWN UPDATE: '%s' -> '%s'\n",
                     message.content ?? "(vide)", formatted_content);
-                
+
                 // Optimisation : éviter les appels set_markup inutiles
                 if (content_label.get_text() != (message.content ?? "")) {
                     try {

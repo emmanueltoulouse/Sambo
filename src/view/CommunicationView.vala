@@ -17,7 +17,7 @@ namespace Sambo {
         private Box action_bar;
         private Label status_label;
         private Label execution_time_label;
-        
+
         // Variables pour le chronomètre
         private int64 start_time = 0;
         private uint timer_source_id = 0;
@@ -241,13 +241,13 @@ namespace Sambo {
         public void start_execution_timer() {
             start_time = get_monotonic_time();
             execution_time_label.set_text("00:00.00");
-            
+
             // Arrêter le timer précédent s'il existe
             if (timer_source_id != 0) {
                 Source.remove(timer_source_id);
                 timer_source_id = 0;
             }
-            
+
             // Démarrer un nouveau timer qui se met à jour toutes les 10ms
             timer_source_id = Timeout.add(10, update_execution_timer);
         }
@@ -260,7 +260,7 @@ namespace Sambo {
                 Source.remove(timer_source_id);
                 timer_source_id = 0;
             }
-            
+
             if (start_time > 0) {
                 int64 elapsed_microseconds = get_monotonic_time() - start_time;
                 string final_time = format_execution_time(elapsed_microseconds);
@@ -301,12 +301,12 @@ namespace Sambo {
             double seconds = microseconds / 1000000.0;
             int minutes = (int)(seconds / 60);
             double remaining_seconds = seconds % 60.0;
-            
+
             // Limiter à 99 minutes maximum pour tenir en 8 caractères
             if (minutes > 99) {
                 return "99:59.99";
             }
-            
+
             return "%02d:%05.2f".printf(minutes, remaining_seconds);
         }
 

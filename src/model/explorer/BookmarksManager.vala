@@ -36,18 +36,18 @@ public class BookmarksManager : Object {
             }
 
             bookmarks_file = File.new_for_path(Path.build_filename(app_config_dir, "bookmarks.txt"));
-            
+
             // Localisation du fichier de signets GNOME Fichiers
             gnome_bookmarks_file = File.new_for_path(Path.build_filename(config_dir, "gtk-3.0", "bookmarks"));
             if (!gnome_bookmarks_file.query_exists()) {
                 // Essayer gtk-4.0 si gtk-3.0 n'existe pas
                 gnome_bookmarks_file = File.new_for_path(Path.build_filename(config_dir, "gtk-4.0", "bookmarks"));
             }
-            
+
             load_bookmarks();
             load_gnome_bookmarks();
             setup_gnome_monitor();
-            
+
         } catch (Error e) {
             warning(_("Erreur lors de l'initialisation des favoris: %s"), e.message);
         }
@@ -63,7 +63,7 @@ public class BookmarksManager : Object {
 
     public Gee.List<File> get_all_bookmarks() {
         var all_bookmarks = new Gee.ArrayList<File>();
-        
+
         // Ajouter les signets GNOME d'abord
         foreach (var gnome_bookmark in gnome_bookmarks) {
             try {
@@ -75,7 +75,7 @@ public class BookmarksManager : Object {
                 // Ignorer les URIs invalides
             }
         }
-        
+
         // Ajouter les signets Sambo (s'ils ne sont pas déjà présents)
         foreach (var bookmark in bookmarks) {
             bool already_present = false;
@@ -89,7 +89,7 @@ public class BookmarksManager : Object {
                 all_bookmarks.add(bookmark);
             }
         }
-        
+
         return all_bookmarks;
     }
 
@@ -177,49 +177,48 @@ public class BookmarksManager : Object {
         bookmarks_changed();
     }
 
-    private void load_gnome_bookmarks() {
-        gnome_bookmarks.clear();
+        private void load_gnome_bookmarks() {
+            gnome_bookmarks.clear();
 
-        if (!gnome_bookmarks_file.query_exists()) {
-            return;
-        }
+            if (!gnome_bookmarks_file.query_exists()) {
+                return;
+            }
 
-        try {
-            var dis = new DataInputStream(gnome_bookmarks_file.read());
-            string line;
+            try {
+                var dis = new DataInputStream(gnome_bookmarks_file.read());
+                string line;
 
-            while ((line = dis.read_line()) != null) {
-                line = line.strip();
-                if (line != "" && line.has_prefix("file://")) {
-                    // Parser la ligne: "file:///path/to/folder Optional Name"
-                    string[] parts = line.split(" ", 2);
-                    string uri = parts[0];
-                    string? name = parts.length > 1 ? parts[1] : null;
+                while ((line = dis.read_line()) != null) {
+                    line = line.strip();
                     
-                    try {
-                        var file = File.new_for_uri(uri);
-                        string path = file.get_path();
-                        
-                        if (path != null && file.query_exists()) {
-                            GnomeBookmark bookmark = GnomeBookmark() {
-                                uri = uri,
-                                name = name,
-                                path = path
-                            };
-                            gnome_bookmarks.add(bookmark);
+                    if (line != "" && line.has_prefix("file://")) {
+                        // Parser la ligne: "file:///path/to/folder Optional Name"
+                        string[] parts = line.split(" ", 2);
+                        string uri = parts[0];
+                        string? name = parts.length > 1 ? parts[1] : null;
+
+                        try {
+                            var file = File.new_for_uri(uri);
+                            string path = file.get_path();
+
+                            if (path != null && file.query_exists()) {
+                                GnomeBookmark bookmark = GnomeBookmark() {
+                                    uri = uri,
+                                    name = name,
+                                    path = path
+                                };
+                                gnome_bookmarks.add(bookmark);
+                            }
+                        } catch (Error e) {
+                            // Ignorer les URIs invalides
+                            warning("URI invalide dans les signets GNOME: %s", uri);
                         }
-                    } catch (Error e) {
-                        // Ignorer les URIs invalides
-                        warning("URI invalide dans les signets GNOME: %s", uri);
                     }
                 }
+            } catch (Error e) {
+                warning(_("Erreur lors du chargement des signets GNOME: %s"), e.message);
             }
-        } catch (Error e) {
-            warning(_("Erreur lors du chargement des signets GNOME: %s"), e.message);
-        }
-    }
-
-    public void setup_gnome_monitor() {
+        }    public void setup_gnome_monitor() {
         if (!gnome_bookmarks_file.query_exists()) {
             return;
         }

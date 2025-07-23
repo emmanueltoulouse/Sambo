@@ -16,7 +16,7 @@ namespace Sambo {
         public string content { get; set; }
         public DateTime timestamp { get; set; }
         public SenderType sender { get; set; }
-        
+
         // Propriétés pour les statistiques de traitement
         public int token_count { get; set; default = 0; }
         public double processing_duration { get; set; default = 0.0; } // en secondes
@@ -47,7 +47,7 @@ namespace Sambo {
             int hours = total_seconds / 3600;
             int minutes = (total_seconds % 3600) / 60;
             int seconds = total_seconds % 60;
-            
+
             return "%02d:%02d:%02d".printf(hours, minutes, seconds);
         }
 
@@ -58,18 +58,18 @@ namespace Sambo {
             if (!is_processing_complete || sender == SenderType.USER) {
                 return timestamp.format("%H:%M");
             }
-            
+
             // Utiliser l'heure de fin de traitement si disponible, sinon l'heure du message
             DateTime display_time = completion_time ?? timestamp;
             string stats = display_time.format("%H:%M");
-            
+
             if (token_count > 0) {
                 stats += " • %d tokens".printf(token_count);
             }
             if (processing_duration > 0) {
                 stats += " • " + format_duration(processing_duration);
             }
-            
+
             return stats;
         }
 
