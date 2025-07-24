@@ -37,9 +37,17 @@
 }
 
 .chat-toolbar {
-    padding: 8px 12px;
+    padding: 4px 12px;
     border-bottom: 1px solid rgba(0, 0, 0, 0.08);
     background-color: #fafafa;
+}
+
+/* Styles pour les labels des boutons de profil dans la barre de chat */
+.profile-label,
+.manager-label {
+    font-weight: normal;
+    font-size: 0.9em;
+    color: #2d2d2d;
 }
 
 .model-selector-button {
@@ -81,11 +89,15 @@
     background-color: white;
     border: 1px solid rgba(0, 0, 0, 0.1);
     min-width: 420px;
+    min-height: 200px;
+    max-height: 600px;
 }
 
 .model-list row {
     border-radius: 4px;
     margin: 2px;
+    min-height: 40px;
+    padding: 4px 8px;
 }
 
 .model-list row:hover {
@@ -121,12 +133,15 @@
     border-radius: 8px;
     min-height: 50px; /* Force une hauteur minimale */
     background-color: rgba(255, 0, 0, 0.1); /* Debug : fond rouge transparent */
+    min-width: 200px;
+    max-width: 80%;
 }
 
 .bubble-content {
     padding: 8px 12px;
     border-radius: 18px;
     min-height: 30px; /* Force une hauteur minimale */
+    width: 100%;
 }
 
 .user-bubble .bubble-content {
@@ -144,6 +159,54 @@
     min-height: 20px; /* Force une hauteur minimale pour le texte */
     font-size: 14px; /* Force une taille de police visible */
     font-weight: normal;
+}
+
+/* Styles spécifiques pour le TextView sélectionnable dans les bulles */
+.bubble-text textview {
+    background: transparent;
+    border: none;
+    padding: 0;
+    font-size: 14px;
+    width: 100%;
+    min-width: 0;
+}
+
+.bubble-text textview text {
+    background: transparent;
+    border: none;
+    padding: 0;
+    width: 100%;
+    min-width: 0;
+}
+
+/* Style de sélection pour le texte dans les bulles */
+.bubble-text textview text selection {
+    background-color: #3584e4;
+    color: white;
+}
+
+/* Styles pour la liste des profils dans le popover */
+.profiles-list {
+    padding: 4px;
+}
+
+.profile-item-button {
+    min-height: 44px;
+    padding: 8px 12px;
+    margin: 2px 0;
+    border-radius: 6px;
+    transition: all 150ms ease;
+}
+
+.profile-item-button:hover {
+    background-color: rgba(53, 132, 228, 0.1);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.profile-item-button:active {
+    transform: translateY(0);
+    background-color: rgba(53, 132, 228, 0.15);
 }
 
 .bubble-time {
@@ -537,4 +600,107 @@ toast {
 .params-label {
     font-size: 13px;
     font-weight: 500;
+}
+
+/* ===== AMÉLIORATION DES POPOVER ===== */
+/* Styles généraux pour tous les popover */
+popover, popover.background {
+    background: none;
+    border: none;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    border-radius: 12px;
+    padding: 0;
+    margin: 4px;
+}
+
+/* Contenu des popover */
+popover > contents {
+    background: white;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+    padding: 0;
+    box-shadow: none;
+}
+
+/* Flèche des popover */
+popover > arrow {
+    background: white;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    min-width: 12px;
+    min-height: 12px;
+}
+
+/* Popover de sélection de profils */
+popover .profiles-list {
+    background: white;
+    border-radius: 12px;
+    padding: 8px;
+}
+
+/* Popover de filtrage d'extensions */
+popover .extension-filter {
+    background: white;
+    border-radius: 12px;
+    padding: 12px;
+}
+
+/* Menus contextuels (PopoverMenu) */
+popover.menu, popovermenu {
+    background: white;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+    padding: 4px;
+}
+
+popover.menu > contents, popovermenu > contents {
+    background: transparent;
+    border: none;
+    padding: 0;
+}
+
+/* Éléments de menu dans les popover */
+popover.menu modelbutton, popovermenu modelbutton {
+    border-radius: 6px;
+    margin: 1px;
+    padding: 8px 12px;
+    min-height: 32px;
+}
+
+popover.menu modelbutton:hover, popovermenu modelbutton:hover {
+    background-color: rgba(53, 132, 228, 0.1);
+}
+
+popover.menu modelbutton:active, popovermenu modelbutton:active {
+    background-color: rgba(53, 132, 228, 0.15);
+}
+
+/* Styles spécifiques pour les différents types de popover */
+.profile-selection-popover {
+    min-width: 300px;
+}
+
+.extension-filter-popover {
+    border-radius: 12px;
+}
+
+.context-menu-popover {
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Animation d'apparition des popover */
+@keyframes popover-in {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+popover {
+    animation: popover-in 150ms ease-out;
 }

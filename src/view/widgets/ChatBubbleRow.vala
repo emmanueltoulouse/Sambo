@@ -6,7 +6,7 @@ namespace Sambo {
      * Widget représentant une bulle de message dans l'interface de chat
      */
     public class ChatBubbleRow : Gtk.Box {
-        private Label content_label;
+        private TextView content_text_view;
         private Label time_label;
         private ChatMessage message;
 
@@ -59,24 +59,40 @@ namespace Sambo {
             var bubble_box = new Box(Orientation.VERTICAL, 3);
             stderr.printf("🟡 CHATBUBBLEROW: bubble_box créé\n");
             bubble_box.add_css_class("bubble-content");
+            bubble_box.set_hexpand(true);  // Étendre horizontalement
+            bubble_box.set_halign(Align.FILL);  // Remplir l'espace disponible
 
-            // Créer le libellé pour le contenu du message
-            content_label = new Label("");
-            stderr.printf("🟡 CHATBUBBLEROW: content_label créé avec: '%s'\n", message.content ?? "(vide)");
-            content_label.wrap = true;
-            content_label.wrap_mode = Pango.WrapMode.WORD_CHAR;
-            content_label.xalign = 0;
-            content_label.max_width_chars = 40;
-            content_label.add_css_class("bubble-text");
-
-            // Activer le markup Pango pour supporter les balises de formatage
-            content_label.use_markup = true;
-
-            // Convertir le contenu Markdown en markup Pango
+            // Créer un TextView sélectionnable pour le contenu du message
+            content_text_view = new TextView();
+            stderr.printf("🟡 CHATBUBBLEROW: content_text_view créé avec: '%s'\n", message.content ?? "(vide)");
+            content_text_view.editable = false;  // En lecture seule
+            content_text_view.cursor_visible = false;  // Pas de curseur
+            content_text_view.wrap_mode = Gtk.WrapMode.WORD_CHAR;
+            content_text_view.add_css_class("bubble-text");
+            content_text_view.set_size_request(-1, -1);  // Ajustement automatique
+            content_text_view.set_hexpand(true);  // Étendre horizontalement
+            content_text_view.set_halign(Align.FILL);  // Remplir l'espace disponible
+            
+            // Obtenir le buffer pour définir le contenu
+            var buffer = content_text_view.get_buffer();
+            
+            // Convertir le contenu Markdown et l'appliquer
             string formatted_content = convert_markdown_to_pango(message.content ?? "");
             stderr.printf("🎨 MARKDOWN: '%s' -> '%s'\n",
                 message.content ?? "(vide)", formatted_content);
-            content_label.set_markup(formatted_content);
+            
+            try {
+                buffer.create_tag("markdown", "wrap-mode", Pango.WrapMode.WORD_CHAR);
+                
+                // Pour l'instant, utiliser le texte brut - nous améliorerons le formatage plus tard
+                buffer.set_text(message.content ?? "", -1);
+            } catch (Error e) {
+                warning("Erreur lors de la définition du contenu du TextView: %s", e.message);
+                buffer.set_text(message.content ?? "", -1);
+            }
+            
+            // Ajouter le menu contextuel personnalisé
+            setup_context_menu();
 
             // Créer le libellé pour l'horodatage
             time_label = new Label(message.get_formatted_stats());
@@ -84,10 +100,10 @@ namespace Sambo {
             time_label.add_css_class("bubble-time");
             time_label.set_halign(is_user ? Align.END : Align.START);
 
-            // Ajouter les libellés au conteneur de bulle
-            bubble_box.append(content_label);
+            // Ajouter les widgets au conteneur de bulle
+            bubble_box.append(content_text_view);
             bubble_box.append(time_label);
-            stderr.printf("🟡 CHATBUBBLEROW: Labels ajoutés à bubble_box\n");
+            stderr.printf("🟡 CHATBUBBLEROW: Widgets ajoutés à bubble_box\n");
 
             // Ajouter la bulle à la boîte principale
             this.append(bubble_box);
@@ -185,24 +201,28 @@ namespace Sambo {
          * Exécute réellement la mise à jour du contenu
          */
         private void execute_content_update() {
-            if (content_label != null && message != null) {
+            if (content_text_view != null && message != null) {
                 stderr.printf("[TRACE][IN] CHATBUBBLEROW: Mise à jour du contenu: '%s'\n",
                     message.content.length > 50 ? message.content.substring(0, 50) + "..." : message.content ?? "(vide)");
 
-                // Convertir le contenu Markdown en markup Pango
-                string formatted_content = convert_markdown_to_pango(message.content ?? "");
-                stderr.printf("🎨 MARKDOWN UPDATE: '%s' -> '%s'\n",
-                    message.content ?? "(vide)", formatted_content);
-
-                // Optimisation : éviter les appels set_markup inutiles
-                if (content_label.get_text() != (message.content ?? "")) {
+                // Obtenir le buffer du TextView
+                var buffer = content_text_view.get_buffer();
+                
+                // Optimisation : éviter les appels inutiles
+                TextIter start, end;
+                buffer.get_bounds(out start, out end);
+                string current_text = buffer.get_text(start, end, false);
+                
+                if (current_text != (message.content ?? "")) {
                     try {
-                        content_label.set_markup(formatted_content);
+                        // Pour l'instant, utiliser le texte brut
+                        // TODO: Implémenter le formatage Markdown dans TextView plus tard
+                        buffer.set_text(message.content ?? "", -1);
                         last_update_time = get_monotonic_time();
-                        stderr.printf("[TRACE][OUT] CHATBUBBLEROW: Contenu mis à jour avec markup\n");
-                    } catch (GLib.MarkupError e) {
-                        stderr.printf("⚠️  CHATBUBBLEROW: Erreur markup, utilisation du texte brut: %s\n", e.message);
-                        content_label.set_text(message.content ?? "");
+                        stderr.printf("[TRACE][OUT] CHATBUBBLEROW: Contenu mis à jour dans TextView\n");
+                    } catch (Error e) {
+                        stderr.printf("⚠️  CHATBUBBLEROW: Erreur mise à jour TextView: %s\n", e.message);
+                        buffer.set_text(message.content ?? "", -1);
                     }
                 }
 
@@ -213,8 +233,123 @@ namespace Sambo {
 
                 stderr.printf("[TRACE][OUT] CHATBUBBLEROW: Contenu mis à jour avec succès\n");
             } else {
-                stderr.printf("[TRACE][IN] CHATBUBBLEROW: ERREUR - content_label ou message est null\n");
+                stderr.printf("[TRACE][IN] CHATBUBBLEROW: ERREUR - content_text_view ou message est null\n");
             }
+        }
+
+        /**
+         * Configure le menu contextuel pour la sélection et la copie
+         */
+        private void setup_context_menu() {
+            // Créer un contrôleur de geste pour le clic droit
+            var right_click_gesture = new GestureClick();
+            right_click_gesture.set_button(3); // Bouton droit de la souris
+            
+            right_click_gesture.pressed.connect((n_press, x, y) => {
+                show_context_menu(x, y);
+            });
+            
+            content_text_view.add_controller(right_click_gesture);
+        }
+
+        /**
+         * Affiche le menu contextuel pour copier le texte sélectionné
+         */
+        private void show_context_menu(double x, double y) {
+            var buffer = content_text_view.get_buffer();
+            
+            // Vérifier s'il y a du texte sélectionné
+            TextIter start, end;
+            bool has_selection = buffer.get_selection_bounds(out start, out end);
+            
+            // Créer le menu
+            var menu = new GLib.Menu();
+            
+            if (has_selection) {
+                // Si du texte est sélectionné, ajouter l'option "Copier la sélection"
+                menu.append(_("Copier la sélection"), "bubble.copy-selection");
+            }
+            
+            // Toujours ajouter l'option "Copier tout le message"
+            menu.append(_("Copier tout le message"), "bubble.copy-all");
+            
+            // Créer et configurer le popover menu
+            var popover = new PopoverMenu.from_model(menu);
+            popover.set_parent(content_text_view);
+            
+            // Ajouter des classes CSS pour un style amélioré
+            popover.add_css_class("context-menu-popover");
+            
+            // Positionner le menu à l'endroit du clic
+            Gdk.Rectangle rect = {};
+            rect.x = (int)x;
+            rect.y = (int)y;
+            rect.width = 1;
+            rect.height = 1;
+            popover.set_pointing_to(rect);
+            
+            // Configurer les actions
+            setup_menu_actions();
+            
+            // Afficher le menu
+            popover.popup();
+        }
+
+        /**
+         * Configure les actions du menu contextuel
+         */
+        private void setup_menu_actions() {
+            var action_group = new SimpleActionGroup();
+            
+            // Action pour copier la sélection
+            var copy_selection_action = new SimpleAction("copy-selection", null);
+            copy_selection_action.activate.connect(() => {
+                copy_selected_text();
+            });
+            action_group.add_action(copy_selection_action);
+            
+            // Action pour copier tout le message
+            var copy_all_action = new SimpleAction("copy-all", null);
+            copy_all_action.activate.connect(() => {
+                copy_all_text();
+            });
+            action_group.add_action(copy_all_action);
+            
+            // Ajouter le groupe d'actions au widget
+            content_text_view.insert_action_group("bubble", action_group);
+        }
+
+        /**
+         * Copie le texte sélectionné dans le presse-papiers
+         */
+        private void copy_selected_text() {
+            var buffer = content_text_view.get_buffer();
+            TextIter start, end;
+            
+            if (buffer.get_selection_bounds(out start, out end)) {
+                string selected_text = buffer.get_text(start, end, false);
+                
+                var clipboard = Gdk.Display.get_default().get_clipboard();
+                clipboard.set_text(selected_text);
+                
+                stderr.printf("📋 CHATBUBBLEROW: Texte sélectionné copié: '%s'\n", selected_text);
+            }
+        }
+
+        /**
+         * Copie tout le contenu du message dans le presse-papiers
+         */
+        private void copy_all_text() {
+            var buffer = content_text_view.get_buffer();
+            TextIter start, end;
+            buffer.get_bounds(out start, out end);
+            
+            string all_text = buffer.get_text(start, end, false);
+            
+            var clipboard = Gdk.Display.get_default().get_clipboard();
+            clipboard.set_text(all_text);
+            
+            stderr.printf("📋 CHATBUBBLEROW: Tout le message copié: '%s'\n", all_text);
         }
 
         /**

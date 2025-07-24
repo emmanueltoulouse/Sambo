@@ -304,13 +304,43 @@ namespace Sambo {
         }
 
         /**
+         * Calcule la hauteur dynamique du popover selon le nombre de profils
+         */
+        private int calculate_dynamic_height(Gee.Collection<InferenceProfile> profiles) {
+            // Hauteur de base pour le titre et les marges
+            int base_height = 80; // Titre + marges + bouton gérer
+            
+            // Hauteur par profil (raisonnable)
+            int item_height = 50; // Espace raisonnable par profil
+            
+            // Calculer la hauteur totale selon le nombre de profils
+            int total_height = base_height + (profiles.size * item_height);
+            
+            // Debug : afficher les valeurs calculées
+            stderr.printf("🎯 ChatView: Calcul hauteur VRAIMENT dynamique - Profils: %d, Base: %dpx, Par item: %dpx, Total calculé: %dpx\n", 
+                profiles.size, base_height, item_height, total_height);
+            
+            // Limites raisonnables :
+            // - Minimum : 200px pour au moins un profil
+            // - Maximum : 600px pour éviter les popover trop grands
+            int final_height = int.max(200, int.min(600, total_height));
+            
+            stderr.printf("🎯 ChatView: Hauteur FINALE appliquée: %dpx (pour %d profils)\n", final_height, profiles.size);
+            
+            return final_height;
+        }
+
+        /**
          * Affiche le popover de sélection des profils
          */
         private void show_profile_selection_popover() {
             var popover = new Gtk.Popover();
             popover.set_parent(profile_selector_button);
             popover.set_position(Gtk.PositionType.BOTTOM);
-
+            
+            // Ajouter des classes CSS pour un style amélioré
+            popover.add_css_class("profile-selection-popover");
+            
             // Obtenir la liste des profils
             var config = controller.get_config_manager();
             var profiles = config.get_all_profiles();
@@ -322,13 +352,13 @@ namespace Sambo {
             main_box.set_margin_top(12);
             main_box.set_margin_bottom(12);
 
-            // Titre du popover
+            // Titre du popover (fixe)
             var title_label = new Label("Sélection du profil d'inférence");
             title_label.add_css_class("heading");
             title_label.set_margin_bottom(12);
             main_box.append(title_label);
 
-            // Créer la liste des profils
+            // Créer la liste des profils (dans ScrolledWindow)
             var profiles_box = new Box(Orientation.VERTICAL, 3);
             profiles_box.add_css_class("profiles-list");
 
@@ -354,12 +384,27 @@ namespace Sambo {
                     var profile_button = create_profile_button(profile, popover);
                     profiles_box.append(profile_button);
                 }
+            }
 
+            // ScrolledWindow SEULEMENT pour la liste des profils
+            var scrolled = new ScrolledWindow();
+            scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC);
+            
+            // Calculer la hauteur dynamiquement selon le nombre d'éléments
+            int dynamic_height = calculate_dynamic_height(profiles);
+            scrolled.set_max_content_height(dynamic_height);
+            scrolled.set_min_content_width(300);
+            scrolled.set_child(profiles_box);
+            
+            main_box.append(scrolled);
+
+            // Boutons de gestion (fixes - en bas)
+            if (profiles.size > 0) {
                 // Séparateur
                 var separator = new Separator(Orientation.HORIZONTAL);
                 separator.set_margin_top(6);
                 separator.set_margin_bottom(6);
-                profiles_box.append(separator);
+                main_box.append(separator);
 
                 // Bouton pour gérer les profils
                 var manage_button = new Button.with_label("Gérer les profils...");
@@ -368,18 +413,12 @@ namespace Sambo {
                     popover.popdown();
                     on_profile_manager_clicked();
                 });
-                profiles_box.append(manage_button);
+                main_box.append(manage_button);
             }
 
-            main_box.append(profiles_box);
-
-            var scrolled = new ScrolledWindow();
-            scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC);
-            scrolled.set_max_content_height(400);
-            scrolled.set_min_content_width(300);
-            scrolled.set_child(main_box);
-
-            popover.set_child(scrolled);
+            // Laisser GTK gérer la hauteur automatiquement, juste définir la largeur
+            popover.set_size_request(320, -1); // -1 = hauteur automatique
+            popover.set_child(main_box);
             popover.popup();
         }
 

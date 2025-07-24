@@ -310,6 +310,9 @@ namespace Sambo {
                     ext_filter_popover.set_parent(ext_filter_button);
                     ext_filter_popover.set_child(ext_filter_chips);
                     ext_filter_popover.set_size_request(320, 400);
+                    
+                    // Ajouter des classes CSS pour un style amélioré
+                    ext_filter_popover.add_css_class("extension-filter-popover");
                 }
                 ext_filter_popover.popup();
             });
