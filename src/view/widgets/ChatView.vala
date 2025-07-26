@@ -309,24 +309,24 @@ namespace Sambo {
         private int calculate_dynamic_height(Gee.Collection<InferenceProfile> profiles) {
             // Hauteur de base pour le titre et les marges
             int base_height = 80; // Titre + marges + bouton gérer
-            
+
             // Hauteur par profil (raisonnable)
             int item_height = 50; // Espace raisonnable par profil
-            
+
             // Calculer la hauteur totale selon le nombre de profils
             int total_height = base_height + (profiles.size * item_height);
-            
+
             // Debug : afficher les valeurs calculées
-            stderr.printf("🎯 ChatView: Calcul hauteur VRAIMENT dynamique - Profils: %d, Base: %dpx, Par item: %dpx, Total calculé: %dpx\n", 
+            stderr.printf("🎯 ChatView: Calcul hauteur VRAIMENT dynamique - Profils: %d, Base: %dpx, Par item: %dpx, Total calculé: %dpx\n",
                 profiles.size, base_height, item_height, total_height);
-            
+
             // Limites raisonnables :
             // - Minimum : 200px pour au moins un profil
             // - Maximum : 600px pour éviter les popover trop grands
             int final_height = int.max(200, int.min(600, total_height));
-            
+
             stderr.printf("🎯 ChatView: Hauteur FINALE appliquée: %dpx (pour %d profils)\n", final_height, profiles.size);
-            
+
             return final_height;
         }
 
@@ -337,10 +337,10 @@ namespace Sambo {
             var popover = new Gtk.Popover();
             popover.set_parent(profile_selector_button);
             popover.set_position(Gtk.PositionType.BOTTOM);
-            
+
             // Ajouter des classes CSS pour un style amélioré
             popover.add_css_class("profile-selection-popover");
-            
+
             // Obtenir la liste des profils
             var config = controller.get_config_manager();
             var profiles = config.get_all_profiles();
@@ -389,13 +389,13 @@ namespace Sambo {
             // ScrolledWindow SEULEMENT pour la liste des profils
             var scrolled = new ScrolledWindow();
             scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC);
-            
+
             // Calculer la hauteur dynamiquement selon le nombre d'éléments
             int dynamic_height = calculate_dynamic_height(profiles);
             scrolled.set_max_content_height(dynamic_height);
             scrolled.set_min_content_width(300);
             scrolled.set_child(profiles_box);
-            
+
             main_box.append(scrolled);
 
             // Boutons de gestion (fixes - en bas)
@@ -617,7 +617,7 @@ namespace Sambo {
                 template_text = template_text.replace("{system}", current_profile.prompt);
                 template_text = template_text.replace("{user}", user_message);
                 template_text = template_text.replace("{assistant}", "");
-                
+
                 context.append(template_text);
             } else {
                 // Utiliser le format de chat template par défaut pour Llama 3.2
@@ -662,93 +662,153 @@ namespace Sambo {
 
             // Générer la réponse avec streaming
             stderr.printf("[TRACE][OUT] CHATVIEW: Appel controller.generate_ai_response avec callback\n");
-            controller.generate_ai_response(context, params, (partial_response, is_finished) => {
-                stderr.printf("[TRACE][IN] CHATVIEW: Callback reçu - %d caractères, terminé: %s\n",
-                    (int)partial_response.length, is_finished ? "OUI" : "NON");
-                stderr.printf("[TRACE][IN] CHATVIEW: Contenu reçu: '%s'\n",
-                    partial_response.length > 100 ? partial_response.substring(0, 100) + "..." : partial_response);
 
-                // Détecter les réponses d'erreur ou de simulation
-                if (partial_response.contains("Je comprends votre question") || 
-                    partial_response.contains("Mode simulation") ||
-                    partial_response.contains("Voici une réponse simulée") ||
-                    partial_response.contains("simulation") && partial_response.contains("paramètres")) {
-                    ai_error_detected = true;
-                    ai_error_message = "🤖 **_Réponse générique détectée_**\n\n**Cause :** Le modèle d'IA génère des réponses génériques au lieu de répondre à votre question.\n\n**Solutions possibles :**\n• Reformulez votre question de manière plus spécifique\n• Vérifiez le template de chat dans les paramètres du profil\n• Le modèle pourrait ne pas être adapté à ce type de question";
-                }
+            try {
+                controller.generate_ai_response(context, params, (partial_response, is_finished) => {
+                    stderr.printf("[TRACE][IN] CHATVIEW: Callback reçu - %d caractères, terminé: %s\n",
+                        (int)partial_response.length, is_finished ? "OUI" : "NON");
 
-                // Vérifier que l'interface n'a pas été détruite et qu'on traite toujours le bon message
-                if (current_ai_message != null && current_ai_bubble != null && !is_generation_cancelled) {
-                    stderr.printf("[TRACE][IN] CHATVIEW: Interface disponible, mise à jour...\n");
-
-                    // Si une erreur a été détectée, afficher le message d'erreur au lieu de la réponse
-                    if (ai_error_detected && is_finished) {
-                        current_ai_message.content = ai_error_message;
-                    } else if (!ai_error_detected) {
-                        // Mettre à jour le contenu du message seulement si pas d'erreur détectée
-                        current_ai_message.content = partial_response;
+                    // Protection contre les réponses null ou invalides
+                    if (partial_response == null) {
+                        stderr.printf("[ERROR] CHATVIEW: Réponse null reçue dans le callback\n");
+                        partial_response = "";
                     }
-                    
-                    stderr.printf("[TRACE][OUT] CHATVIEW: Message mis à jour, appel update_content()\n");
-                    current_ai_bubble.update_content();
+
+                    // Limiter la taille de la trace pour éviter les problèmes de mémoire
+                    string trace_content = partial_response.length > 50 ?
+                        partial_response.substring(0, 50) + "..." : partial_response;
+                    stderr.printf("[TRACE][IN] CHATVIEW: Contenu reçu: '%s'\n", trace_content);
+
+                    // Détecter les réponses d'erreur ou de simulation
+                    if (partial_response.contains("Je comprends votre question") ||
+                        partial_response.contains("Mode simulation") ||
+                        partial_response.contains("Voici une réponse simulée") ||
+                        partial_response.contains("simulation") && partial_response.contains("paramètres")) {
+                        ai_error_detected = true;
+                        ai_error_message = "🤖 **_Réponse générique détectée_**\n\n**Cause :** Le modèle d'IA génère des réponses génériques au lieu de répondre à votre question.\n\n**Solutions possibles :**\n• Reformulez votre question de manière plus spécifique\n• Vérifiez le template de chat dans les paramètres du profil\n• Le modèle pourrait ne pas être adapté à ce type de question";
+                    }
+
+                    // Protection critique contre les erreurs de segmentation
+                    try {
+                        // Vérifier que l'interface n'a pas été détruite et qu'on traite toujours le bon message
+                        if (current_ai_message != null && current_ai_bubble != null && !is_generation_cancelled) {
+                            stderr.printf("[TRACE][IN] CHATVIEW: Interface disponible, mise à jour...\n");
+
+                            // Vérification supplémentaire des pointeurs
+                            if (current_ai_message.is_floating() == false && current_ai_bubble.is_floating() == false) {
+                                // Si une erreur a été détectée, afficher le message d'erreur au lieu de la réponse
+                                if (ai_error_detected && is_finished) {
+                                    current_ai_message.content = ai_error_message;
+                                } else if (!ai_error_detected) {
+                                    // Mettre à jour le contenu du message seulement si pas d'erreur détectée
+                                    current_ai_message.content = partial_response;
+                                }
+
+                                stderr.printf("[TRACE][OUT] CHATVIEW: Message mis à jour, appel update_content()\n");
+
+                                // Utiliser une minuterie pour éviter les problèmes de concurrence
+                                Idle.add(() => {
+                                    if (current_ai_bubble != null && !current_ai_bubble.is_floating()) {
+                                        current_ai_bubble.update_content();
+                                    }
+                                    return Source.REMOVE;
+                                });
+                            } else {
+                                stderr.printf("[WARNING] CHATVIEW: Widgets détachés détectés, annulation de la mise à jour\n");
+                            }
+                        } else {
+                            stderr.printf("[TRACE][IN] CHATVIEW: Interface non disponible ou génération annulée\n");
+                        }
+                    } catch (Error update_error) {
+                        stderr.printf("[ERROR] CHATVIEW: Erreur lors de la mise à jour de l'interface: %s\n", update_error.message);
+
+                        // Copier le message d'erreur pour l'utiliser dans le lambda
+                        string error_message = update_error.message;
+                        
+                        // Afficher un message d'erreur sécurisé
+                        Idle.add(() => {
+                            show_error_response("💥 **_Erreur critique de l'interface_**\n\n**Cause :** Une erreur s'est produite lors de la mise à jour de la réponse IA.\n\n**Détails :** " + error_message + "\n\n**Solution :** Réessayez votre question. Si le problème persiste, redémarrez l'application.");
+                            return Source.REMOVE;
+                        });
+                        return; // Sortir du callback en cas d'erreur
+                    }
 
                     // Compter approximativement les tokens (estimation grossière)
                     token_count = (int)(partial_response.length / 4.0); // ~4 caractères par token
 
-                    // Faire défiler vers le bas pour suivre la génération
+                    // Faire défiler vers le bas pour suivre la génération (de manière sécurisée)
                     Idle.add(() => {
-                        scroll_to_bottom();
+                        try {
+                            scroll_to_bottom();
+                        } catch (Error scroll_error) {
+                            stderr.printf("[ERROR] CHATVIEW: Erreur lors du défilement: %s\n", scroll_error.message);
+                        }
                         return Source.REMOVE;
                     });
 
                     if (is_finished) {
                         stderr.printf("[TRACE][IN] CHATVIEW: Génération terminée - nettoyage\n");
 
-                        // Calculer la durée de traitement
-                        int64 generation_end_time = get_monotonic_time();
-                        double duration = (generation_end_time - generation_start_time) / 1000000.0; // en secondes
+                        try {
+                            // Calculer la durée de traitement
+                            int64 generation_end_time = get_monotonic_time();
+                            double duration = (generation_end_time - generation_start_time) / 1000000.0; // en secondes
 
-                        // Mettre à jour les statistiques dans la bulle
-                        if (current_ai_bubble != null) {
-                            current_ai_bubble.update_processing_stats(token_count, duration);
+                            // Mettre à jour les statistiques dans la bulle
+                            if (current_ai_bubble != null && !current_ai_bubble.is_floating()) {
+                                current_ai_bubble.update_processing_stats(token_count, duration);
+                            }
+
+                            // Arrêter le chronomètre dans le CommunicationView
+                            var parent_widget = this.get_parent();
+                            while (parent_widget != null && !(parent_widget is CommunicationView)) {
+                                parent_widget = parent_widget.get_parent();
+                            }
+                            if (parent_widget is CommunicationView) {
+                                ((CommunicationView)parent_widget).stop_execution_timer();
+                            }
+
+                            // Génération terminée
+                            is_processing = false;
+
+                            // Statut différent selon s'il y a eu une erreur ou pas
+                            if (ai_error_detected) {
+                                if (status_label != null && !status_label.is_floating()) {
+                                    status_label.set_text("⚠️ Réponse générique détectée");
+                                }
+                            } else {
+                                if (status_label != null && !status_label.is_floating()) {
+                                    status_label.set_text("Prêt"); // Statut neutre après génération
+                                }
+                            }
+
+                            // Nettoyer les références
+                            current_ai_message = null;
+                            current_ai_bubble = null;
+
+                            // Masquer les indicateurs de progression et réactiver l'envoi (de manière sécurisée)
+                            if (progress_bar != null && !progress_bar.is_floating()) {
+                                progress_bar.set_visible(false);
+                            }
+                            if (cancel_generation_button != null && !cancel_generation_button.is_floating()) {
+                                cancel_generation_button.set_visible(false);
+                            }
+                            if (send_button != null && !send_button.is_floating()) {
+                                send_button.set_sensitive(true);
+                            }
+                            if (message_entry != null && !message_entry.is_floating()) {
+                                message_entry.set_sensitive(true);
+                                message_entry.grab_focus();
+                            }
+                        } catch (Error finish_error) {
+                            stderr.printf("[ERROR] CHATVIEW: Erreur lors de la finalisation: %s\n", finish_error.message);
                         }
-
-                        // Arrêter le chronomètre dans le CommunicationView
-                        var parent_widget = this.get_parent();
-                        while (parent_widget != null && !(parent_widget is CommunicationView)) {
-                            parent_widget = parent_widget.get_parent();
-                        }
-                        if (parent_widget is CommunicationView) {
-                            ((CommunicationView)parent_widget).stop_execution_timer();
-                        }
-
-                        // Génération terminée
-                        is_processing = false;
-                        
-                        // Statut différent selon s'il y a eu une erreur ou pas
-                        if (ai_error_detected) {
-                            status_label.set_text("⚠️ Réponse générique détectée");
-                        } else {
-                            status_label.set_text("Prêt"); // Statut neutre après génération
-                        }
-
-                        // Nettoyer les références
-                        current_ai_message = null;
-                        current_ai_bubble = null;
-
-                        // Masquer les indicateurs de progression et réactiver l'envoi
-                        progress_bar.set_visible(false);
-                        cancel_generation_button.set_visible(false);
-                        send_button.set_sensitive(true);
-                        message_entry.set_sensitive(true);
-
-                        // Donner le focus à l'entrée de message pour une nouvelle saisie
-                        message_entry.grab_focus();
                     }
-                } else {
-                    stderr.printf("[TRACE][IN] CHATVIEW: Interface non disponible ou génération annulée\n");
-                }
-            });
+                });
+            } catch (Error generation_error) {
+                stderr.printf("[ERROR] CHATVIEW: Erreur lors de la génération IA: %s\n", generation_error.message);
+                show_error_response("🚨 **_Erreur de génération IA_**\n\n**Cause :** Une erreur critique s'est produite lors de la génération de la réponse.\n\n**Détails :** " + generation_error.message + "\n\n**Solutions :**\n• Réessayez votre question\n• Vérifiez que le modèle d'IA est correctement configuré\n• Redémarrez l'application si le problème persiste");
+            }
         }
 
         /**
@@ -926,7 +986,7 @@ namespace Sambo {
          */
         private void on_cancel_generation_clicked() {
             stderr.printf("🔍 ChatView.on_cancel_generation_clicked: DÉBUT\n");
-            
+
             try {
                 // Marquer la génération comme annulée
                 is_generation_cancelled = true;
@@ -978,7 +1038,7 @@ namespace Sambo {
                 // En cas d'erreur critique, forcer le débloquage
                 force_unlock_ui();
             }
-            
+
             stderr.printf("🔍 ChatView.on_cancel_generation_clicked: FIN\n");
         }
 

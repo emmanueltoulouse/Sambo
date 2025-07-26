@@ -166,34 +166,34 @@ public class MainWindow : Adw.ApplicationWindow {
         editor_notebook.append_page(default_editor, default_tab_box);
         editor_notebook.set_tab_reorderable(default_editor, true);
         editor_notebook.set_current_page(0);
-        
+
         // Ajouter debug pour changements d'onglets
         editor_notebook.notify["page"].connect(() => {
             int current_page = editor_notebook.get_current_page();
             stderr.printf("🔍 MainWindow.editor_notebook.page: Changement vers page %d\n", current_page);
             if (current_page >= 0 && current_page < editor_tabs.size) {
                 var current_editor = editor_tabs[current_page];
-                stderr.printf("🔍 MainWindow.editor_notebook: Widgets de l'éditeur - toolbar_box: %s, wysiwyg_editor: %s, statusbar_box: %s\n", 
+                stderr.printf("🔍 MainWindow.editor_notebook: Widgets de l'éditeur - toolbar_box: %s, wysiwyg_editor: %s, statusbar_box: %s\n",
                     current_editor.toolbar_box != null && current_editor.toolbar_box.get_visible() ? "OUI" : "NON",
-                    current_editor.wysiwyg_editor != null && current_editor.wysiwyg_editor.get_visible() ? "OUI" : "NON", 
+                    current_editor.wysiwyg_editor != null && current_editor.wysiwyg_editor.get_visible() ? "OUI" : "NON",
                     current_editor.statusbar_box != null && current_editor.statusbar_box.get_visible() ? "OUI" : "NON");
             }
         });
-        
+
         // Debug pour les événements de redimensionnement de fenêtre
         notify["default-width"].connect(() => {
             stderr.printf("🔍 MainWindow: Redimensionnement largeur détecté\n");
         });
-        
+
         notify["default-height"].connect(() => {
             stderr.printf("🔍 MainWindow: Redimensionnement hauteur détecté\n");
         });
-        
+
         // Debug pour les changements de visibilité de la fenêtre
         notify["visible"].connect(() => {
             stderr.printf("🔍 MainWindow: Changement de visibilité fenêtre: %s\n", get_visible() ? "VISIBLE" : "INVISIBLE");
         });
-        
+
         // Debug pour les changements de focus
         notify["is-active"].connect(() => {
             stderr.printf("🔍 MainWindow: Changement focus fenêtre: %s\n", is_active ? "ACTIVE" : "INACTIVE");

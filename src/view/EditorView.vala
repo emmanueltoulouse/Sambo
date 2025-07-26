@@ -433,13 +433,13 @@ namespace Sambo {
             // --- Assembler le panneau principal avec architecture correcte ---
             stderr.printf("🔍 EditorView.constructor: Assemblage des widgets - toolbar_box: %s, wysiwyg_editor: %s, statusbar_box: %s\n",
                 toolbar_box != null ? "OK" : "NULL",
-                wysiwyg_editor != null ? "OK" : "NULL", 
+                wysiwyg_editor != null ? "OK" : "NULL",
                 statusbar_box != null ? "OK" : "NULL");
-            
+
             // Structure corrigée: extraire toolbar et statusbar du scroll
             // 1. Toolbar en haut (fixe, ne scroll pas)
             content_box.append(toolbar_box);
-            
+
             // 2. Zone d'édition avec scroll au centre (seul l'éditeur scroll)
             var editor_scroll = new ScrolledWindow();
             editor_scroll.set_policy(PolicyType.AUTOMATIC, PolicyType.AUTOMATIC);
@@ -447,7 +447,7 @@ namespace Sambo {
             editor_scroll.set_hexpand(true);
             editor_scroll.set_child(wysiwyg_editor);
             content_box.append(editor_scroll);
-            
+
             // 3. Statusbar en bas (fixe, ne scroll pas)
             content_box.append(statusbar_box);
 
@@ -460,7 +460,7 @@ namespace Sambo {
             this.append(frame);
 
             update_statusbar();
-            
+
             stderr.printf("🔍 EditorView.constructor: FIN - Widgets assemblés et visibles\n");
 
             // Mets à jour la position du curseur en temps réel
@@ -618,21 +618,21 @@ namespace Sambo {
         // Mets à jour la barre d’état après chaque chargement/sauvegarde
         public void load_document(PivotDocument document) {
             stderr.printf("🔍 EditorView.load_document: DÉBUT - Document: %s\n", document != null ? "OUI" : "NON");
-            stderr.printf("🔍 EditorView.load_document: Widgets visibles AVANT - toolbar_box: %s, wysiwyg_editor: %s, statusbar_box: %s\n", 
+            stderr.printf("🔍 EditorView.load_document: Widgets visibles AVANT - toolbar_box: %s, wysiwyg_editor: %s, statusbar_box: %s\n",
                 toolbar_box.get_visible() ? "OUI" : "NON",
-                wysiwyg_editor.get_visible() ? "OUI" : "NON", 
+                wysiwyg_editor.get_visible() ? "OUI" : "NON",
                 statusbar_box.get_visible() ? "OUI" : "NON");
-            
+
             current_document = document;
             wysiwyg_editor.load_pivot_document(document);
             has_unsaved_changes = false;
             update_statusbar();
-            
-            stderr.printf("🔍 EditorView.load_document: Widgets visibles APRÈS - toolbar_box: %s, wysiwyg_editor: %s, statusbar_box: %s\n", 
+
+            stderr.printf("🔍 EditorView.load_document: Widgets visibles APRÈS - toolbar_box: %s, wysiwyg_editor: %s, statusbar_box: %s\n",
                 toolbar_box.get_visible() ? "OUI" : "NON",
-                wysiwyg_editor.get_visible() ? "OUI" : "NON", 
+                wysiwyg_editor.get_visible() ? "OUI" : "NON",
                 statusbar_box.get_visible() ? "OUI" : "NON");
-            
+
             // Vérifier les dimensions immédiates des widgets
             int toolbar_width = toolbar_box.get_width();
             int toolbar_height = toolbar_box.get_height();
@@ -640,19 +640,19 @@ namespace Sambo {
             int editor_height = wysiwyg_editor.get_height();
             int statusbar_width = statusbar_box.get_width();
             int statusbar_height = statusbar_box.get_height();
-            
+
             stderr.printf("📏 EditorView DIMENSIONS (immédiat) - toolbar: %dx%d, editor: %dx%d, statusbar: %dx%d\n",
                 toolbar_width, toolbar_height, editor_width, editor_height, statusbar_width, statusbar_height);
-            
+
             stderr.printf("🔍 EditorView.load_document: FIN\n");
-            
+
             // Timer différé pour vérifier la visibilité ET les dimensions 3 secondes plus tard
             Timeout.add_seconds(3, () => {
-                stderr.printf("🔍 EditorView.load_document: VÉRIFICATION DIFFÉRÉE (3s) - toolbar_box: %s, wysiwyg_editor: %s, statusbar_box: %s\n", 
+                stderr.printf("🔍 EditorView.load_document: VÉRIFICATION DIFFÉRÉE (3s) - toolbar_box: %s, wysiwyg_editor: %s, statusbar_box: %s\n",
                     toolbar_box.get_visible() ? "OUI" : "NON",
-                    wysiwyg_editor.get_visible() ? "OUI" : "NON", 
+                    wysiwyg_editor.get_visible() ? "OUI" : "NON",
                     statusbar_box.get_visible() ? "OUI" : "NON");
-                
+
                 // Vérifier les dimensions réelles des widgets
                 int tb_width = toolbar_box.get_width();
                 int tb_height = toolbar_box.get_height();
@@ -660,10 +660,10 @@ namespace Sambo {
                 int ed_height = wysiwyg_editor.get_height();
                 int sb_width = statusbar_box.get_width();
                 int sb_height = statusbar_box.get_height();
-                
+
                 stderr.printf("📏 EditorView DIMENSIONS (3s) - toolbar: %dx%d, editor: %dx%d, statusbar: %dx%d\n",
                     tb_width, tb_height, ed_width, ed_height, sb_width, sb_height);
-                    
+
                 return false; // Ne pas répéter
             });
         }

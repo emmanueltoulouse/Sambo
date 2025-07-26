@@ -72,25 +72,25 @@ namespace Sambo {
             content_text_view.set_size_request(-1, -1);  // Ajustement automatique
             content_text_view.set_hexpand(true);  // Étendre horizontalement
             content_text_view.set_halign(Align.FILL);  // Remplir l'espace disponible
-            
+
             // Obtenir le buffer pour définir le contenu
             var buffer = content_text_view.get_buffer();
-            
+
             // Convertir le contenu Markdown et l'appliquer
             string formatted_content = convert_markdown_to_pango(message.content ?? "");
             stderr.printf("🎨 MARKDOWN: '%s' -> '%s'\n",
                 message.content ?? "(vide)", formatted_content);
-            
+
             try {
                 buffer.create_tag("markdown", "wrap-mode", Pango.WrapMode.WORD_CHAR);
-                
+
                 // Pour l'instant, utiliser le texte brut - nous améliorerons le formatage plus tard
                 buffer.set_text(message.content ?? "", -1);
             } catch (Error e) {
                 warning("Erreur lors de la définition du contenu du TextView: %s", e.message);
                 buffer.set_text(message.content ?? "", -1);
             }
-            
+
             // Ajouter le menu contextuel personnalisé
             setup_context_menu();
 
@@ -164,10 +164,16 @@ namespace Sambo {
         }
 
         /**
-         * Met à jour le contenu affiché avec optimisations (debouncing pour streaming)
+         * Met à jour le contenu affiché avec optimisations et protection thread-safe
          */
         public void update_content() {
             stderr.printf("[TRACE][IN] CHATBUBBLEROW: update_content appelé\n");
+
+            // Vérifications de base avant traitement
+            if (this.is_floating()) {
+                stderr.printf("[ERROR] CHATBUBBLEROW: Widget détaché du parent\n");
+                return;
+            }
 
             var current_time = get_monotonic_time();
 
@@ -182,9 +188,13 @@ namespace Sambo {
                         Source.remove(update_timeout_id);
                     }
 
-                    // Planifier la mise à jour dans 33ms
+                    // Planifier la mise à jour dans 33ms avec protection
                     update_timeout_id = Timeout.add(33, () => {
-                        execute_content_update();
+                        if (!this.is_floating()) {
+                            execute_content_update();
+                        } else {
+                            stderr.printf("[WARNING] CHATBUBBLEROW: Widget détaché pendant le timeout\n");
+                        }
                         update_timeout_id = 0;
                         pending_update = false;
                         return Source.REMOVE;
@@ -198,42 +208,89 @@ namespace Sambo {
         }
 
         /**
-         * Exécute réellement la mise à jour du contenu
+         * Exécute réellement la mise à jour du contenu avec protection maximale
          */
         private void execute_content_update() {
-            if (content_text_view != null && message != null) {
-                stderr.printf("[TRACE][IN] CHATBUBBLEROW: Mise à jour du contenu: '%s'\n",
-                    message.content.length > 50 ? message.content.substring(0, 50) + "..." : message.content ?? "(vide)");
+            stderr.printf("[TRACE][IN] CHATBUBBLEROW: execute_content_update démarré\n");
+            
+            // Vérifications de sécurité critiques
+            if (content_text_view == null) {
+                stderr.printf("[ERROR] CHATBUBBLEROW: content_text_view est null\n");
+                return;
+            }
+            
+            if (message == null) {
+                stderr.printf("[ERROR] CHATBUBBLEROW: message est null\n");
+                return;
+            }
+            
+            // Vérifier que le widget n'est pas détruit
+            if (content_text_view.is_floating()) {
+                stderr.printf("[ERROR] CHATBUBBLEROW: content_text_view est détaché du parent\n");
+                return;
+            }
 
-                // Obtenir le buffer du TextView
+            try {
+                stderr.printf("[TRACE][IN] CHATBUBBLEROW: Mise à jour du contenu: '%s'\n",
+                    message.content != null && message.content.length > 50 ? 
+                    message.content.substring(0, 50) + "..." : message.content ?? "(vide)");
+
+                // Obtenir le buffer du TextView avec protection
                 var buffer = content_text_view.get_buffer();
+                if (buffer == null) {
+                    stderr.printf("[ERROR] CHATBUBBLEROW: buffer du TextView est null\n");
+                    return;
+                }
+
+                // Protection contre les accès concurrents au buffer
+                string new_content = message.content ?? "";
                 
-                // Optimisation : éviter les appels inutiles
+                // Vérifier si le buffer est valide avant de l'utiliser
+                if (buffer.is_floating()) {
+                    stderr.printf("[ERROR] CHATBUBBLEROW: buffer du TextView est détaché\n");
+                    return;
+                }
+
+                // Optimisation : éviter les appels inutiles avec protection
                 TextIter start, end;
                 buffer.get_bounds(out start, out end);
                 string current_text = buffer.get_text(start, end, false);
-                
-                if (current_text != (message.content ?? "")) {
+
+                if (current_text != new_content) {
+                    // Mise à jour thread-safe du buffer
                     try {
-                        // Pour l'instant, utiliser le texte brut
-                        // TODO: Implémenter le formatage Markdown dans TextView plus tard
-                        buffer.set_text(message.content ?? "", -1);
+                        buffer.set_text(new_content, -1);
                         last_update_time = get_monotonic_time();
                         stderr.printf("[TRACE][OUT] CHATBUBBLEROW: Contenu mis à jour dans TextView\n");
-                    } catch (Error e) {
-                        stderr.printf("⚠️  CHATBUBBLEROW: Erreur mise à jour TextView: %s\n", e.message);
-                        buffer.set_text(message.content ?? "", -1);
+                    } catch (Error buffer_error) {
+                        stderr.printf("[ERROR] CHATBUBBLEROW: Erreur mise à jour buffer: %s\n", buffer_error.message);
+                        // Tentative de récupération avec contenu minimal
+                        try {
+                            buffer.set_text(new_content.length > 1000 ? new_content.substring(0, 1000) + "..." : new_content, -1);
+                        } catch (Error recovery_error) {
+                            stderr.printf("[ERROR] CHATBUBBLEROW: Échec récupération buffer: %s\n", recovery_error.message);
+                        }
+                    }
+                } else {
+                    stderr.printf("[TRACE] CHATBUBBLEROW: Contenu identique, pas de mise à jour nécessaire\n");
+                }
+
+                // Mettre à jour aussi les statistiques si disponibles (avec protection)
+                if (time_label != null && !time_label.is_floating()) {
+                    try {
+                        string stats = message.get_formatted_stats();
+                        time_label.set_text(stats);
+                    } catch (Error stats_error) {
+                        stderr.printf("[ERROR] CHATBUBBLEROW: Erreur mise à jour stats: %s\n", stats_error.message);
                     }
                 }
 
-                // Mettre à jour aussi les statistiques si disponibles
-                if (time_label != null) {
-                    time_label.set_text(message.get_formatted_stats());
-                }
-
                 stderr.printf("[TRACE][OUT] CHATBUBBLEROW: Contenu mis à jour avec succès\n");
-            } else {
-                stderr.printf("[TRACE][IN] CHATBUBBLEROW: ERREUR - content_text_view ou message est null\n");
+                
+            } catch (Error global_error) {
+                stderr.printf("[ERROR] CHATBUBBLEROW: Erreur critique dans execute_content_update: %s\n", global_error.message);
+                // En cas d'erreur critique, désactiver les futures mises à jour
+                content_text_view = null;
             }
         }
 
@@ -244,11 +301,11 @@ namespace Sambo {
             // Créer un contrôleur de geste pour le clic droit
             var right_click_gesture = new GestureClick();
             right_click_gesture.set_button(3); // Bouton droit de la souris
-            
+
             right_click_gesture.pressed.connect((n_press, x, y) => {
                 show_context_menu(x, y);
             });
-            
+
             content_text_view.add_controller(right_click_gesture);
         }
 
@@ -257,29 +314,29 @@ namespace Sambo {
          */
         private void show_context_menu(double x, double y) {
             var buffer = content_text_view.get_buffer();
-            
+
             // Vérifier s'il y a du texte sélectionné
             TextIter start, end;
             bool has_selection = buffer.get_selection_bounds(out start, out end);
-            
+
             // Créer le menu
             var menu = new GLib.Menu();
-            
+
             if (has_selection) {
                 // Si du texte est sélectionné, ajouter l'option "Copier la sélection"
                 menu.append(_("Copier la sélection"), "bubble.copy-selection");
             }
-            
+
             // Toujours ajouter l'option "Copier tout le message"
             menu.append(_("Copier tout le message"), "bubble.copy-all");
-            
+
             // Créer et configurer le popover menu
             var popover = new PopoverMenu.from_model(menu);
             popover.set_parent(content_text_view);
-            
+
             // Ajouter des classes CSS pour un style amélioré
             popover.add_css_class("context-menu-popover");
-            
+
             // Positionner le menu à l'endroit du clic
             Gdk.Rectangle rect = {};
             rect.x = (int)x;
@@ -287,10 +344,10 @@ namespace Sambo {
             rect.width = 1;
             rect.height = 1;
             popover.set_pointing_to(rect);
-            
+
             // Configurer les actions
             setup_menu_actions();
-            
+
             // Afficher le menu
             popover.popup();
         }
@@ -300,21 +357,21 @@ namespace Sambo {
          */
         private void setup_menu_actions() {
             var action_group = new SimpleActionGroup();
-            
+
             // Action pour copier la sélection
             var copy_selection_action = new SimpleAction("copy-selection", null);
             copy_selection_action.activate.connect(() => {
                 copy_selected_text();
             });
             action_group.add_action(copy_selection_action);
-            
+
             // Action pour copier tout le message
             var copy_all_action = new SimpleAction("copy-all", null);
             copy_all_action.activate.connect(() => {
                 copy_all_text();
             });
             action_group.add_action(copy_all_action);
-            
+
             // Ajouter le groupe d'actions au widget
             content_text_view.insert_action_group("bubble", action_group);
         }
@@ -325,13 +382,13 @@ namespace Sambo {
         private void copy_selected_text() {
             var buffer = content_text_view.get_buffer();
             TextIter start, end;
-            
+
             if (buffer.get_selection_bounds(out start, out end)) {
                 string selected_text = buffer.get_text(start, end, false);
-                
+
                 var clipboard = Gdk.Display.get_default().get_clipboard();
                 clipboard.set_text(selected_text);
-                
+
                 stderr.printf("📋 CHATBUBBLEROW: Texte sélectionné copié: '%s'\n", selected_text);
             }
         }
@@ -343,12 +400,12 @@ namespace Sambo {
             var buffer = content_text_view.get_buffer();
             TextIter start, end;
             buffer.get_bounds(out start, out end);
-            
+
             string all_text = buffer.get_text(start, end, false);
-            
+
             var clipboard = Gdk.Display.get_default().get_clipboard();
             clipboard.set_text(all_text);
-            
+
             stderr.printf("📋 CHATBUBBLEROW: Tout le message copié: '%s'\n", all_text);
         }
 

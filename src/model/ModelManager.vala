@@ -790,96 +790,169 @@ Cette réponse est générée en mode simulation car llama.cpp n'est pas disponi
 
         // Callback appelé par llama.cpp pour chaque token généré
         private static void streaming_callback_wrapper(string token, void* user_data, void* closure_data) {
-            StreamingContext* context = (StreamingContext*)user_data;
+            try {
+                StreamingContext* context = (StreamingContext*)user_data;
 
-            stderr.printf("[TRACE][TOKEN] Reçu token: '%s' (longueur: %d)\n",
-                token.length > 20 ? token.substring(0, 20) + "..." : token,
-                (int)token.length);
+                // Vérifications de sécurité critiques
+                if (context == null) {
+                    stderr.printf("[ERROR] MODELMANAGER: Context null dans streaming_callback_wrapper\n");
+                    return;
+                }
 
-            // Vérifier l'annulation
-            if (*(context->cancel_ref)) {
-                stderr.printf("[TRACE][TOKEN] Annulation détectée dans callback\n");
-                *(context->generation_completed) = true;
-                return;
-            }
+                if (context->cancel_ref == null || context->generation_completed == null || context->has_error == null) {
+                    stderr.printf("[ERROR] MODELMANAGER: Pointeurs de contrôle null dans streaming_callback_wrapper\n");
+                    *(context->has_error) = true;
+                    return;
+                }
 
-            // Cas spéciaux : fin de génération
-            if (token == "" || token == "</s>" || token == "<|end|>" || token == "<|endoftext|>") {
-                stderr.printf("[TRACE][TOKEN] Token de fin détecté: '%s'\n", token);
-                *(context->generation_completed) = true;
+                stderr.printf("[TRACE][TOKEN] Reçu token: '%s' (longueur: %d)\n",
+                    token != null && token.length > 20 ? token.substring(0, 20) + "..." : (token ?? "NULL"),
+                    token != null ? (int)token.length : 0);
 
-                // Notifier la fin via le callback Vala
+                // Protection contre les tokens null ou invalides
+                if (token == null) {
+                    stderr.printf("[WARNING] MODELMANAGER: Token null reçu, ignoré\n");
+                    return;
+                }
+
+                // Vérifier l'annulation
+                if (*(context->cancel_ref)) {
+                    stderr.printf("[TRACE][TOKEN] Annulation détectée dans callback\n");
+                    *(context->generation_completed) = true;
+                    return;
+                }
+
+                // Cas spéciaux : fin de génération
+                if (token == "" || token == "</s>" || token == "<|end|>" || token == "<|endoftext|>") {
+                    stderr.printf("[TRACE][TOKEN] Token de fin détecté: '%s'\n", token);
+                    *(context->generation_completed) = true;
+
+                    // Notifier la fin via le callback Vala (avec protection)
+                    Idle.add(() => {
+                        try {
+                            if (!(*(context->cancel_ref)) && context->vala_callback != null) {
+                                string final_content = context->response_builder != null ? context->response_builder.str : "";
+                                stderr.printf("[TRACE][CALLBACK] Fin génération - %d caractères au total\n",
+                                    (int)final_content.length);
+                                context->vala_callback(final_content, true); // true = terminé
+                            }
+                        } catch (Error callback_error) {
+                            stderr.printf("[ERROR] MODELMANAGER: Erreur dans callback de fin: %s\n", callback_error.message);
+                        }
+                        return Source.REMOVE;
+                    });
+                    return;
+                }
+
+                // Ajouter le token à la réponse (avec protection)
+                if (context->response_builder != null) {
+                    context->response_builder.append(token);
+                } else {
+                    stderr.printf("[ERROR] MODELMANAGER: response_builder null, impossible d'ajouter le token\n");
+                    *(context->has_error) = true;
+                    return;
+                }
+
+                string current_content = context->response_builder.str;
+
+                // Notifier le nouveau contenu via le callback Vala (avec protection)
                 Idle.add(() => {
-                    if (!(*(context->cancel_ref)) && context->vala_callback != null) {
-                        string final_content = context->response_builder.str;
-                        stderr.printf("[TRACE][CALLBACK] Fin génération - %d caractères au total\n",
-                            (int)final_content.length);
-                        context->vala_callback(final_content, true); // true = terminé
+                    try {
+                        if (!(*(context->cancel_ref)) && context->vala_callback != null) {
+                            stderr.printf("[TRACE][CALLBACK] Mise à jour streaming - %d caractères\n",
+                                (int)current_content.length);
+                            context->vala_callback(current_content, false); // false = pas terminé
+                        }
+                    } catch (Error progress_error) {
+                        stderr.printf("[ERROR] MODELMANAGER: Erreur dans callback de progrès: %s\n", progress_error.message);
+                        *(context->has_error) = true;
                     }
                     return Source.REMOVE;
                 });
-                return;
-            }
 
-            // Ajouter le token à la réponse
-            context->response_builder.append(token);
-            string current_content = context->response_builder.str;
-
-            // Notifier le nouveau contenu via le callback Vala
-            Idle.add(() => {
-                if (!(*(context->cancel_ref)) && context->vala_callback != null) {
-                    stderr.printf("[TRACE][CALLBACK] Mise à jour streaming - %d caractères\n",
-                        (int)current_content.length);
-                    context->vala_callback(current_content, false); // false = pas terminé
+            } catch (Error wrapper_error) {
+                stderr.printf("[ERROR] MODELMANAGER: Erreur critique dans streaming_callback_wrapper: %s\n", wrapper_error.message);
+                if (user_data != null) {
+                    StreamingContext* ctx = (StreamingContext*)user_data;
+                    if (ctx->has_error != null) *(ctx->has_error) = true;
+                    if (ctx->generation_completed != null) *(ctx->generation_completed) = true;
                 }
-                return Source.REMOVE;
-            });
+            }
         }
 
         // Callback optimisé avec buffer de tokens pour réduire les mises à jour UI
         private static void streaming_callback_wrapper_optimized(string token, void* user_data, void* closure_data) {
-            StreamingContext* context = (StreamingContext*)user_data;
+            try {
+                StreamingContext* context = (StreamingContext*)user_data;
 
-            stderr.printf("[TRACE][TOKEN] Reçu token: '%s' (longueur: %d)\n",
-                token.length > 20 ? token.substring(0, 20) + "..." : token,
-                (int)token.length);
-
-            // Vérifier l'annulation
-            if (*(context->cancel_ref)) {
-                stderr.printf("[TRACE][TOKEN] Annulation détectée dans callback optimisé\n");
-                *(context->generation_completed) = true;
-                return;
-            }
-
-            // Cas spéciaux : fin de génération
-            if (token == "" || token == "</s>" || token == "<|end|>" || token == "<|endoftext|>") {
-                stderr.printf("[TRACE][TOKEN] Token de fin détecté: '%s'\n", token);
-
-                // Vider le buffer avant de terminer
-                if (context->buffer_size > 0) {
-                    context->response_builder.append(context->token_buffer.str);
-                    context->token_buffer.truncate(0);
-                    context->buffer_size = 0;
+                // Vérifications de sécurité critiques
+                if (context == null) {
+                    stderr.printf("[ERROR] MODELMANAGER: Context null dans streaming_callback_wrapper_optimized\n");
+                    return;
                 }
 
-                *(context->generation_completed) = true;
+                if (context->cancel_ref == null || context->generation_completed == null || context->has_error == null) {
+                    stderr.printf("[ERROR] MODELMANAGER: Pointeurs de contrôle null dans streaming_callback_wrapper_optimized\n");
+                    if (context->has_error != null) *(context->has_error) = true;
+                    return;
+                }
 
-                // Notifier la fin via le callback Vala
-                Idle.add(() => {
-                    if (!(*(context->cancel_ref)) && context->vala_callback != null) {
-                        string final_content = context->response_builder.str;
-                        stderr.printf("[TRACE][CALLBACK] Fin génération optimisée - %d caractères au total\n",
-                            (int)final_content.length);
-                        context->vala_callback(final_content, true); // true = terminé
+                stderr.printf("[TRACE][TOKEN] Reçu token: '%s' (longueur: %d)\n",
+                    token != null && token.length > 20 ? token.substring(0, 20) + "..." : (token ?? "NULL"),
+                    token != null ? (int)token.length : 0);
+
+                // Protection contre les tokens null ou invalides
+                if (token == null) {
+                    stderr.printf("[WARNING] MODELMANAGER: Token null reçu dans callback optimisé, ignoré\n");
+                    return;
+                }
+
+                // Vérifier l'annulation
+                if (*(context->cancel_ref)) {
+                    stderr.printf("[TRACE][TOKEN] Annulation détectée dans callback optimisé\n");
+                    *(context->generation_completed) = true;
+                    return;
+                }
+
+                // Cas spéciaux : fin de génération
+                if (token == "" || token == "</s>" || token == "<|end|>" || token == "<|endoftext|>") {
+                    stderr.printf("[TRACE][TOKEN] Token de fin détecté: '%s'\n", token);
+
+                    // Vider le buffer avant de terminer (avec protection)
+                    if (context->buffer_size > 0 && context->token_buffer != null && context->response_builder != null) {
+                        context->response_builder.append(context->token_buffer.str);
+                        context->token_buffer.truncate(0);
+                        context->buffer_size = 0;
                     }
-                    return Source.REMOVE;
+
+                    *(context->generation_completed) = true;
+
+                    // Notifier la fin via le callback Vala (avec protection)
+                    Idle.add(() => {
+                        try {
+                            if (!(*(context->cancel_ref)) && context->vala_callback != null && context->response_builder != null) {
+                                string final_content = context->response_builder.str;
+                                stderr.printf("[TRACE][CALLBACK] Fin génération optimisée - %d caractères au total\n",
+                                    (int)final_content.length);
+                                context->vala_callback(final_content, true); // true = terminé
+                            }
+                        } catch (Error callback_error) {
+                            stderr.printf("[ERROR] MODELMANAGER: Erreur dans callback de fin optimisé: %s\n", callback_error.message);
+                        }
+                        return Source.REMOVE;
                 });
                 return;
             }
 
-            // Ajouter le token au buffer
-            context->token_buffer.append(token);
-            context->buffer_size++;
+            // Ajouter le token au buffer (avec protection)
+            if (context->token_buffer != null && context->response_builder != null) {
+                context->token_buffer.append(token);
+                context->buffer_size++;
+            } else {
+                stderr.printf("[ERROR] MODELMANAGER: Buffers null dans callback optimisé\n");
+                *(context->has_error) = true;
+                return;
+            }
 
             var current_time = get_monotonic_time();
             bool should_update = false;
@@ -896,24 +969,43 @@ Cette réponse est générée en mode simulation car llama.cpp n'est pas disponi
             }
 
             if (should_update) {
-                // Vider le buffer dans la réponse complète
-                context->response_builder.append(context->token_buffer.str);
-                string current_content = context->response_builder.str;
+                // Vider le buffer dans la réponse complète (avec protection)
+                if (context->response_builder != null && context->token_buffer != null) {
+                    context->response_builder.append(context->token_buffer.str);
+                    string current_content = context->response_builder.str;
 
-                // Réinitialiser le buffer
-                context->token_buffer.truncate(0);
-                context->buffer_size = 0;
-                context->last_update_time = current_time;
+                    // Réinitialiser le buffer
+                    context->token_buffer.truncate(0);
+                    context->buffer_size = 0;
+                    context->last_update_time = current_time;
 
-                // Notifier le nouveau contenu via le callback Vala (moins fréquent = plus fluide)
-                Idle.add(() => {
-                    if (!(*(context->cancel_ref)) && context->vala_callback != null) {
-                        stderr.printf("[TRACE][CALLBACK] Mise à jour streaming optimisée - %d caractères\n",
-                            (int)current_content.length);
-                        context->vala_callback(current_content, false); // false = pas terminé
-                    }
-                    return Source.REMOVE;
-                });
+                    // Notifier le nouveau contenu via le callback Vala (avec protection)
+                    Idle.add(() => {
+                        try {
+                            if (!(*(context->cancel_ref)) && context->vala_callback != null) {
+                                stderr.printf("[TRACE][CALLBACK] Mise à jour streaming optimisée - %d caractères\n",
+                                    (int)current_content.length);
+                                context->vala_callback(current_content, false); // false = pas terminé
+                            }
+                        } catch (Error progress_error) {
+                            stderr.printf("[ERROR] MODELMANAGER: Erreur dans callback de progrès optimisé: %s\n", progress_error.message);
+                            *(context->has_error) = true;
+                        }
+                        return Source.REMOVE;
+                    });
+                } else {
+                    stderr.printf("[ERROR] MODELMANAGER: Buffers null lors de la mise à jour\n");
+                    *(context->has_error) = true;
+                }
+            }
+
+            } catch (Error wrapper_error) {
+                stderr.printf("[ERROR] MODELMANAGER: Erreur critique dans streaming_callback_wrapper_optimized: %s\n", wrapper_error.message);
+                if (user_data != null) {
+                    StreamingContext* ctx = (StreamingContext*)user_data;
+                    if (ctx->has_error != null) *(ctx->has_error) = true;
+                    if (ctx->generation_completed != null) *(ctx->generation_completed) = true;
+                }
             }
         }
 
@@ -922,7 +1014,7 @@ Cette réponse est générée en mode simulation car llama.cpp n'est pas disponi
          */
         public void cancel_generation() {
             stderr.printf("🔍 ModelManager.cancel_generation: DÉBUT\n");
-            
+
             try {
                 is_generation_cancelled = true;
 
@@ -939,10 +1031,10 @@ Cette réponse est générée en mode simulation car llama.cpp n'est pas disponi
                     // SUPPRESSION du rechargement forcé qui peut causer des crashes
                     // Cette opération est trop agressive et peut faire planter l'application
                     // Le simple arrêt de génération devrait suffire
-                    
+
                     // Attendre un court délai pour que l'arrêt soit effectif
                     Thread.usleep(50000); // 50ms seulement
-                    
+
                 } else {
                     stderr.printf("🔍 ModelManager: Mode simulation - arrêt simple\n");
                 }
@@ -952,13 +1044,13 @@ Cette réponse est générée en mode simulation car llama.cpp n'est pas disponi
 
                 stderr.printf("🔍 ModelManager: Émission signal generation_cancelled\n");
                 generation_cancelled.emit();
-                
+
             } catch (Error e) {
                 stderr.printf("❌ ModelManager.cancel_generation: Erreur critique: %s\n", e.message);
                 // Même en cas d'erreur, nettoyer l'état
                 is_generation_cancelled = true;
                 current_generation_thread = null;
-                
+
                 // Émettre le signal même en cas d'erreur pour débloquer l'UI
                 try {
                     generation_cancelled.emit();
@@ -966,7 +1058,7 @@ Cette réponse est générée en mode simulation car llama.cpp n'est pas disponi
                     stderr.printf("❌ ModelManager: Impossible d'émettre le signal: %s\n", emit_error.message);
                 }
             }
-            
+
             stderr.printf("🔍 ModelManager.cancel_generation: FIN\n");
         }
 

@@ -11,6 +11,7 @@ namespace Sambo {
         public string comment { get; set; }
         public string prompt { get; set; }
         public string model_path { get; set; }
+        public string template { get; set; default = ""; }
 
         // Paramètres de sampling
         public float temperature { get; set; default = 0.7f; }
@@ -83,6 +84,7 @@ namespace Sambo {
             this.comment = other.comment;
             this.prompt = other.prompt;
             this.model_path = other.model_path;
+            this.template = other.template;
             this.temperature = other.temperature;
             this.top_p = other.top_p;
             this.top_k = other.top_k;

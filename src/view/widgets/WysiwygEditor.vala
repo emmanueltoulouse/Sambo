@@ -333,13 +333,13 @@ namespace Sambo {
 
         private void render_pivot_to_buffer(PivotDocument doc) {
             stderr.printf("🔍 WysiwygEditor.render_pivot_to_buffer: DÉBUT\n");
-            stderr.printf("🔍 WysiwygEditor.render_pivot_to_buffer: Widget visible: %s, parent: %s\n", 
+            stderr.printf("🔍 WysiwygEditor.render_pivot_to_buffer: Widget visible: %s, parent: %s\n",
                 this.get_visible() ? "OUI" : "NON",
                 this.get_parent() != null ? "OUI" : "NON");
 
             buffer.set_text("", 0); // Vider le buffer
-            
-            stderr.printf("🔍 WysiwygEditor.render_pivot_to_buffer: APRÈS buffer.set_text - Widget visible: %s\n", 
+
+            stderr.printf("🔍 WysiwygEditor.render_pivot_to_buffer: APRÈS buffer.set_text - Widget visible: %s\n",
                 this.get_visible() ? "OUI" : "NON");
 
             stderr.printf("🔍 Buffer vidé - Enfants: %d\n",

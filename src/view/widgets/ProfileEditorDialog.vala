@@ -24,6 +24,7 @@ namespace Sambo {
         private Adw.EntryRow title_entry;
         private Adw.EntryRow comment_entry;
         private TextView prompt_textview;
+        private TextView template_textview;
         private DropDown model_dropdown;
         private StringList model_list;
         private HashMap<string, string> model_paths;
@@ -104,6 +105,7 @@ namespace Sambo {
             create_general_section();
             create_model_section();
             create_prompt_section();
+            create_template_section();
             create_sampling_section();
             create_advanced_section();
             create_preview_section();
@@ -332,6 +334,76 @@ namespace Sambo {
             actions_row.add_suffix(clear_button);
 
             group.add(actions_row);
+            preferences_page.add(group);
+        }
+
+        private void create_template_section() {
+            var group = new Adw.PreferencesGroup();
+            group.set_title("🔧 Template de chat");
+            group.set_description("Format de conversation pour le modèle (optionnel)");
+
+            // Libellé au-dessus de la zone de texte
+            var template_label_row = new Adw.ActionRow();
+            template_label_row.set_title("Template personnalisé");
+            template_label_row.set_subtitle("Utilisez {system}, {user}, {assistant} comme placeholders");
+            var template_icon = new Image.from_icon_name("code-symbolic");
+            template_icon.add_css_class("accent");
+            template_label_row.add_prefix(template_icon);
+            group.add(template_label_row);
+
+            // Zone de texte moderne pour le template dans une ActionRow
+            var template_frame = new Frame(null);
+            template_frame.add_css_class("card");
+            template_frame.set_size_request(-1, 120);
+            template_frame.set_margin_start(12);
+            template_frame.set_margin_end(12);
+            template_frame.set_margin_top(6);
+            template_frame.set_margin_bottom(6);
+
+            var template_scroll = new ScrolledWindow();
+            template_scroll.set_policy(PolicyType.AUTOMATIC, PolicyType.AUTOMATIC);
+            template_frame.set_child(template_scroll);
+
+            template_textview = new TextView();
+            template_textview.set_wrap_mode(WrapMode.WORD);
+            template_textview.add_css_class("monospace");
+            template_textview.get_buffer().set_text(editing_profile.template ?? "");
+
+            template_scroll.set_child(template_textview);
+
+            var template_widget_row = new Adw.ActionRow();
+            template_widget_row.set_child(template_frame);
+            group.add(template_widget_row);
+
+            // Boutons d'aide pour le template
+            var template_actions_row = new Adw.ActionRow();
+            template_actions_row.set_title("Modèles prédéfinis");
+
+            var mistral_button = new Button.with_label("Mistral");
+            mistral_button.add_css_class("pill");
+            mistral_button.clicked.connect(() => {
+                var mistral_template = "<s>[INST] {system}\n\n{user} [/INST] {assistant}</s>";
+                template_textview.get_buffer().set_text(mistral_template);
+            });
+            template_actions_row.add_suffix(mistral_button);
+
+            var llama_button = new Button.with_label("Llama");
+            llama_button.add_css_class("pill");
+            llama_button.clicked.connect(() => {
+                var llama_template = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n{system}<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n{user}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n{assistant}";
+                template_textview.get_buffer().set_text(llama_template);
+            });
+            template_actions_row.add_suffix(llama_button);
+
+            var clear_template_button = new Button.with_label("Effacer");
+            clear_template_button.add_css_class("pill");
+            clear_template_button.add_css_class("destructive-action");
+            clear_template_button.clicked.connect(() => {
+                template_textview.get_buffer().set_text("");
+            });
+            template_actions_row.add_suffix(clear_template_button);
+
+            group.add(template_actions_row);
             preferences_page.add(group);
         }
 
@@ -577,6 +649,10 @@ Tu es un assistant de recherche rigoureux. Fournis des informations factuelles e
             TextIter start, end;
             prompt_textview.get_buffer().get_bounds(out start, out end);
             editing_profile.prompt = prompt_textview.get_buffer().get_text(start, end, false).strip();
+
+            // Récupérer le template
+            template_textview.get_buffer().get_bounds(out start, out end);
+            editing_profile.template = template_textview.get_buffer().get_text(start, end, false).strip();
 
             // Récupérer le modèle sélectionné
             var selected_model = model_dropdown.get_selected();

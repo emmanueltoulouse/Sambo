@@ -227,7 +227,7 @@ namespace Sambo {
 
             // Charger le contenu initial
             refresh_directory_content();
-            
+
             stderr.printf("🔍 ExplorerView.constructor: FIN - ExplorerView créé\n");
         }
 
@@ -310,7 +310,7 @@ namespace Sambo {
                     ext_filter_popover.set_parent(ext_filter_button);
                     ext_filter_popover.set_child(ext_filter_chips);
                     ext_filter_popover.set_size_request(320, 400);
-                    
+
                     // Ajouter des classes CSS pour un style amélioré
                     ext_filter_popover.add_css_class("extension-filter-popover");
                 }
@@ -460,7 +460,7 @@ namespace Sambo {
                 var file_item = selection.get_selected_item() as FileItemModel;
                 if (file_item == null) return;
 
-                stderr.printf("🔍 ExplorerView.list_view.activate: DÉBUT - Fichier: %s, Type: %s\n", 
+                stderr.printf("🔍 ExplorerView.list_view.activate: DÉBUT - Fichier: %s, Type: %s\n",
                     file_item.path, file_item.is_directory() ? "DOSSIER" : "FICHIER");
 
                 if (file_item.is_directory()) {
@@ -474,7 +474,7 @@ namespace Sambo {
                     file_selected(file_item.path);
                     stderr.printf("🔍 ExplorerView: Signal file_selected émis\n");
                 }
-                
+
                 stderr.printf("🔍 ExplorerView.list_view.activate: FIN\n");
             });
 

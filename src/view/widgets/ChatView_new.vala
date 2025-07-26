@@ -448,12 +448,23 @@ namespace Sambo {
         private string prepare_context_with_profile(string user_message) {
             var context = new StringBuilder();
 
-            // Utiliser le format de chat template pour Llama 3.2
-            context.append("<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n");
-            context.append(current_profile.prompt);
-            context.append("<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n");
-            context.append(user_message);
-            context.append("<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n");
+            // Utiliser le template personnalisé s'il est défini
+            if (current_profile.template != null && current_profile.template.strip() != "") {
+                // Remplacer les placeholders dans le template
+                string template_text = current_profile.template;
+                template_text = template_text.replace("{system}", current_profile.prompt);
+                template_text = template_text.replace("{user}", user_message);
+                template_text = template_text.replace("{assistant}", "");
+
+                context.append(template_text);
+            } else {
+                // Utiliser le format de chat template par défaut pour Llama 3.2
+                context.append("<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n");
+                context.append(current_profile.prompt);
+                context.append("<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n");
+                context.append(user_message);
+                context.append("<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n");
+            }
 
             return context.str;
         }
