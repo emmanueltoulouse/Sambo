@@ -1,4 +1,5 @@
 using GLib;
+using Sambo.Model.Performance;
 
 namespace Sambo {
     /**
@@ -9,17 +10,12 @@ namespace Sambo {
         private static ModelManager? instance = null;
         private string current_model_path = "";
         private bool is_model_loaded = false;
-        private bool is_backend_initialized = false;
-        private bool is_simulation_mode = false; // Mode réel par défaut
         private bool is_generation_cancelled = false; // Pour annuler la génération
         private Thread<void*>? current_generation_thread = null; // Thread actuel
         private ConfigManager config_manager; // Gestionnaire de configuration
-
-        // Optimisations mémoire
-        private bool model_preloaded = false;            // Modèle gardé en mémoire
-        private string preloaded_model_path = "";        // Chemin du modèle préchargé
-        private StringBuilder context_pool;              // Pool de contextes réutilisables
-        private int64 last_gc_time = 0;                  // Timestamp dernier garbage collection
+        
+        // Gestionnaire d'optimisation des performances
+        private PerformanceOptimizer performance_optimizer;
 
         // Signaux pour informer l'interface
         public signal void model_loaded(string model_path, string model_name);
@@ -45,10 +41,8 @@ namespace Sambo {
             config_manager = new ConfigManager();
             config_manager.load();
 
-            // Initialiser les optimisations mémoire
-            context_pool = new StringBuilder();
-            context_pool.truncate(0);
-            last_gc_time = get_monotonic_time();
+            // Initialiser le gestionnaire d'optimisation des performances
+            performance_optimizer = new PerformanceOptimizer();
 
             // Initialiser le backend llama.cpp
             init_backend();
@@ -56,97 +50,31 @@ namespace Sambo {
 
         /**
          * Initialise le backend llama.cpp avec optimisations
+         * Délègue maintenant au PerformanceOptimizer pour une meilleure séparation des responsabilités
          */
         private void init_backend() {
-            if (!is_backend_initialized) {
-                try {
-                    // Détecter la configuration optimale automatiquement
-                    int optimal_threads = get_optimal_thread_count();
-                    int optimal_batch_size = get_optimal_batch_size();
-
-                    stderr.printf("[PERF] MODELMANAGER: Configuration optimisée détectée:\n");
-                    stderr.printf("[PERF] - Threads: %d\n", optimal_threads);
-                    stderr.printf("[PERF] - Batch size: %d\n", optimal_batch_size);
-                    stderr.printf("[PERF] - MMAP: activé\n");
-                    stderr.printf("[PERF] - MLOCK: activé (32GB RAM détectée)\n");
-
-                    // Tentative d'initialisation optimisée du backend llama.cpp
-                    bool success = Llama.backend_init_optimized(
-                        optimal_threads,    // Threads optimaux
-                        optimal_batch_size, // Batch size optimal
-                        true,              // MMAP activé pour chargement rapide
-                        true               // MLOCK activé (32GB RAM suffisante)
-                    );
-
-                    if (success) {
-                        is_backend_initialized = true;
-                        is_simulation_mode = false;
-
-                        // Configuration additionnelle des performances
-                        Llama.configure_performance(optimal_threads, optimal_batch_size, false);
-
-                        stderr.printf("[PERF] MODELMANAGER: Backend optimisé initialisé avec succès\n");
-                    } else {
-                        throw new IOError.NOT_FOUND("Backend llama.cpp optimisé non disponible, fallback simple");
-                    }
-                } catch (Error e) {
-                    stderr.printf("[PERF] MODELMANAGER: Fallback vers initialisation simple: %s\n", e.message);
-
-                    // Fallback vers l'initialisation simple
-                    try {
-                        bool success = Llama.backend_init();
-                        if (success) {
-                            is_backend_initialized = true;
-                            is_simulation_mode = false;
-                        } else {
-                            throw new IOError.NOT_FOUND("Backend llama.cpp non disponible");
-                        }
-                    } catch (Error e2) {
-                        is_simulation_mode = true;
-                        is_backend_initialized = false;
-                        stderr.printf("[PERF] MODELMANAGER: Mode simulation activé: %s\n", e2.message);
-                    }
-                }
+            bool success = performance_optimizer.init_optimized_backend();
+            if (success) {
+                stderr.printf("[PERF] MODELMANAGER: Backend initialisé via PerformanceOptimizer\n");
+            } else {
+                stderr.printf("[PERF] MODELMANAGER: Mode simulation activé\n");
             }
         }
 
         /**
          * Calcule le nombre optimal de threads pour llama.cpp
+         * Délègue maintenant au PerformanceOptimizer pour une meilleure séparation des responsabilités
          */
         private int get_optimal_thread_count() {
-            try {
-                // Utiliser l'API llama.cpp pour détecter automatiquement
-                int api_threads = Llama.get_optimal_threads();
-                if (api_threads > 0) {
-                    return api_threads;
-                }
-            } catch (Error e) {
-                stderr.printf("[PERF] MODELMANAGER: Erreur détection threads API: %s\n", e.message);
-            }
-
-            // Fallback : détection système
-            try {
-                string nproc_output;
-                Process.spawn_command_line_sync("nproc", out nproc_output);
-                int total_cores = int.parse(nproc_output.strip());
-
-                // Pour l'IA : utiliser 75% des cœurs (laisser de la place pour l'UI)
-                int optimal = (int)(total_cores * 0.75);
-                return optimal > 0 ? optimal : 8; // Minimum 8 threads
-
-            } catch (Error e) {
-                stderr.printf("[PERF] MODELMANAGER: Erreur détection threads système: %s\n", e.message);
-                return 12; // Valeur par défaut conservative pour 32GB RAM
-            }
+            return performance_optimizer.get_optimal_thread_count();
         }
 
         /**
          * Calcule la taille optimale des batches
+         * Délègue maintenant au PerformanceOptimizer pour une meilleure séparation des responsabilités
          */
         private int get_optimal_batch_size() {
-            // Avec 32GB RAM, on peut se permettre des batches plus gros
-            // Plus la batch est grande, plus le traitement est efficace
-            return 1024; // Optimal pour 8B models avec 32GB RAM
+            return performance_optimizer.get_optimal_batch_size();
         }
 
         /**
@@ -313,9 +241,10 @@ namespace Sambo {
 
         /**
          * Indique si le gestionnaire fonctionne en mode simulation
+         * Délègue maintenant au PerformanceOptimizer
          */
         public bool is_in_simulation_mode() {
-            return is_simulation_mode;
+            return performance_optimizer.get_is_simulation_mode();
         }
 
         /**
@@ -1087,14 +1016,13 @@ Cette réponse est générée en mode simulation car llama.cpp n'est pas disponi
 
         /**
          * Destructeur - libère les ressources
+         * Délègue maintenant au PerformanceOptimizer pour la libération des ressources
          */
         ~ModelManager() {
             unload_current_model();
-
-            if (is_backend_initialized && !is_simulation_mode) {
-                Llama.backend_free();
-                is_backend_initialized = false;
-            }
+            
+            // Libérer les ressources via le gestionnaire de performance
+            performance_optimizer.cleanup();
         }
     }
 }
