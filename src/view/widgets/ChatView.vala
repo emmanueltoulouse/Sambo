@@ -610,12 +610,23 @@ namespace Sambo {
         private string prepare_context_with_profile(string user_message) {
             var context = new StringBuilder();
 
-            // Utiliser le format de chat template pour Llama 3.2
-            context.append("<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n");
-            context.append(current_profile.prompt);
-            context.append("<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n");
-            context.append(user_message);
-            context.append("<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n");
+            // Utiliser le template personnalisé s'il est défini
+            if (current_profile.template != null && current_profile.template.strip() != "") {
+                // Remplacer les placeholders dans le template
+                string template_text = current_profile.template;
+                template_text = template_text.replace("{system}", current_profile.prompt);
+                template_text = template_text.replace("{user}", user_message);
+                template_text = template_text.replace("{assistant}", "");
+                
+                context.append(template_text);
+            } else {
+                // Utiliser le format de chat template par défaut pour Llama 3.2
+                context.append("<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n");
+                context.append(current_profile.prompt);
+                context.append("<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n");
+                context.append(user_message);
+                context.append("<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n");
+            }
 
             return context.str;
         }
@@ -630,14 +641,24 @@ namespace Sambo {
                 // Tenter de charger le modèle du profil
                 if (current_profile.model_path != "" && FileUtils.test(current_profile.model_path, FileTest.EXISTS)) {
                     if (!model_manager.load_model(current_profile.model_path)) {
-                        show_error_response("❌ Impossible de charger le modèle : " + current_profile.model_path);
+                        show_error_response("❌ **_Erreur de chargement de modèle_**\n\n**Cause :** Impossible de charger le modèle `" + current_profile.model_path + "`\n\n**Solution :** Vérifiez que le fichier de modèle est accessible et compatible.");
                         return;
                     }
                 } else {
-                    show_error_response("❌ Modèle non trouvé : " + current_profile.model_path);
+                    show_error_response("❌ **_Modèle introuvable_**\n\n**Cause :** Le fichier de modèle `" + current_profile.model_path + "` n'existe pas ou n'est pas accessible.\n\n**Solution :** Configurez un chemin de modèle valide dans les paramètres du profil.");
                     return;
                 }
             }
+
+            // Vérifier si on est en mode simulation (ce qui indique un problème)
+            if (model_manager.is_in_simulation_mode()) {
+                show_error_response("⚠️ **_Mode simulation détecté_**\n\n**Cause :** Le moteur d'IA ne peut pas fonctionner correctement avec le modèle actuel.\n\n**Solutions possibles :**\n• Vérifiez que le modèle est compatible avec votre système\n• Consultez les logs pour plus de détails\n• Essayez avec un autre modèle");
+                return;
+            }
+
+            // Variable pour détecter les erreurs d'IA
+            bool ai_error_detected = false;
+            string ai_error_message = "";
 
             // Générer la réponse avec streaming
             stderr.printf("[TRACE][OUT] CHATVIEW: Appel controller.generate_ai_response avec callback\n");
@@ -647,12 +668,27 @@ namespace Sambo {
                 stderr.printf("[TRACE][IN] CHATVIEW: Contenu reçu: '%s'\n",
                     partial_response.length > 100 ? partial_response.substring(0, 100) + "..." : partial_response);
 
+                // Détecter les réponses d'erreur ou de simulation
+                if (partial_response.contains("Je comprends votre question") || 
+                    partial_response.contains("Mode simulation") ||
+                    partial_response.contains("Voici une réponse simulée") ||
+                    partial_response.contains("simulation") && partial_response.contains("paramètres")) {
+                    ai_error_detected = true;
+                    ai_error_message = "🤖 **_Réponse générique détectée_**\n\n**Cause :** Le modèle d'IA génère des réponses génériques au lieu de répondre à votre question.\n\n**Solutions possibles :**\n• Reformulez votre question de manière plus spécifique\n• Vérifiez le template de chat dans les paramètres du profil\n• Le modèle pourrait ne pas être adapté à ce type de question";
+                }
+
                 // Vérifier que l'interface n'a pas été détruite et qu'on traite toujours le bon message
                 if (current_ai_message != null && current_ai_bubble != null && !is_generation_cancelled) {
                     stderr.printf("[TRACE][IN] CHATVIEW: Interface disponible, mise à jour...\n");
 
-                    // Mettre à jour le contenu du message
-                    current_ai_message.content = partial_response;
+                    // Si une erreur a été détectée, afficher le message d'erreur au lieu de la réponse
+                    if (ai_error_detected && is_finished) {
+                        current_ai_message.content = ai_error_message;
+                    } else if (!ai_error_detected) {
+                        // Mettre à jour le contenu du message seulement si pas d'erreur détectée
+                        current_ai_message.content = partial_response;
+                    }
+                    
                     stderr.printf("[TRACE][OUT] CHATVIEW: Message mis à jour, appel update_content()\n");
                     current_ai_bubble.update_content();
 
@@ -688,7 +724,13 @@ namespace Sambo {
 
                         // Génération terminée
                         is_processing = false;
-                        status_label.set_text("Prêt"); // Statut neutre après génération
+                        
+                        // Statut différent selon s'il y a eu une erreur ou pas
+                        if (ai_error_detected) {
+                            status_label.set_text("⚠️ Réponse générique détectée");
+                        } else {
+                            status_label.set_text("Prêt"); // Statut neutre après génération
+                        }
 
                         // Nettoyer les références
                         current_ai_message = null;
@@ -710,7 +752,7 @@ namespace Sambo {
         }
 
         /**
-         * Affiche un message d'erreur dans le chat
+         * Affiche un message d'erreur dans le chat avec formatage en gras et italique
          */
         private void show_error_response(string error_message) {
             // Arrêter le chronomètre en cas d'erreur
@@ -739,7 +781,17 @@ namespace Sambo {
             send_button.set_sensitive(true);
             message_entry.set_sensitive(true);
 
-            show_toast(error_message);
+            // Extraire le titre de l'erreur pour le toast (sans le formatage markdown)
+            string toast_message = error_message;
+            if (error_message.contains("**_") && error_message.contains("_**")) {
+                // Extraire le titre entre **_ et _**
+                int start = error_message.index_of("**_") + 3;
+                int end = error_message.index_of("_**", start);
+                if (end > start) {
+                    toast_message = error_message.substring(start, end - start);
+                }
+            }
+            show_toast(toast_message);
         }
 
         /**
