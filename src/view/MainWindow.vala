@@ -1,6 +1,8 @@
 using Gtk;
 using Adw;
 using Gee;
+using Sambo.View.Layout;
+using Sambo.Model.Configuration;
 
 // Import pour la fenêtre HuggingFace
 using Sambo.View.Windows;
@@ -18,6 +20,12 @@ public class MainWindow : Adw.ApplicationWindow {
 
     private Adw.HeaderBar header_bar;
     private Box main_box;
+    
+    // Layout manager pour séparer la logique de disposition
+    private LayoutManager layout_manager;
+    
+    // Configuration manager pour centraliser la gestion des états
+    private WindowStateManager window_state_manager;
     private Paned main_paned;
     private Paned top_paned;
     private Paned editor_comm_paned;
@@ -151,6 +159,19 @@ public class MainWindow : Adw.ApplicationWindow {
         }
 
         main_box.append(main_paned);
+
+        // Initialiser le gestionnaire d'état de fenêtre
+        window_state_manager = new WindowStateManager(controller.get_config_manager());
+        
+        // Initialiser le gestionnaire de layout après création des widgets
+        layout_manager = new LayoutManager(
+            main_paned,
+            top_paned,
+            explorer_view,
+            editor_notebook,
+            communication_view,
+            use_detached_explorer
+        );
 
         // Créer un ToastOverlay autour de main_box
         var toast_overlay = new Adw.ToastOverlay();
@@ -311,10 +332,8 @@ public class MainWindow : Adw.ApplicationWindow {
 
         editor_notebook.set_visible(show);
 
-        // Sauvegarder l'état
-        var config = controller.get_config_manager();
-        config.set_boolean("Window", "editor_visible", show);
-        config.save();
+        // Sauvegarder l'état via le gestionnaire centralisé
+        window_state_manager.save_zone_visibility("editor", show);
 
         // Mettre à jour le layout adaptatif
         update_adaptive_layout();
@@ -328,10 +347,8 @@ public class MainWindow : Adw.ApplicationWindow {
 
         communication_view.set_visible(show);
 
-        // Sauvegarder l'état
-        var config = controller.get_config_manager();
-        config.set_boolean("Window", "communication_visible", show);
-        config.save();
+        // Sauvegarder l'état via le gestionnaire centralisé
+        window_state_manager.save_zone_visibility("communication", show);
 
         // Mettre à jour le layout adaptatif
         update_adaptive_layout();
@@ -339,149 +356,21 @@ public class MainWindow : Adw.ApplicationWindow {
 
     /**
      * Met à jour le layout en fonction de la visibilité des zones
-     * Si l'explorateur et l'éditeur sont masqués, la zone de chat prend toute la largeur
+     * Délègue maintenant au LayoutManager pour une meilleure séparation des responsabilités
      */
     private void update_adaptive_layout() {
-        if (use_detached_explorer || main_paned == null || top_paned == null) return;
-
-        // Éviter les appels récursifs
-        if (layout_updating) return;
-        layout_updating = true;
-
-        // Vérifier l'état actuel des zones
-        bool explorer_shown = explorer_visible && explorer_view != null;
-        bool editor_shown = editor_visible && editor_notebook != null;
-        bool communication_shown = communication_visible && communication_view != null;
-
-        // Debug
-        stderr.printf("🔧 LAYOUT: explorer=%s, editor=%s, communication=%s\n",
-            explorer_shown ? "VISIBLE" : "MASQUÉ",
-            editor_shown ? "VISIBLE" : "MASQUÉ",
-            communication_shown ? "VISIBLE" : "MASQUÉ");
-
-        // NOUVELLE APPROCHE : Configuration directe avec force de recalcul
-
-        if (!explorer_shown && !editor_shown && communication_shown) {
-            // Chat seul - configuration directe
-            stderr.printf("🔧 LAYOUT: Mode CHAT SEUL\n");
-            if (top_paned.get_parent() == main_paned) main_paned.set_start_child(null);
-            main_paned.set_end_child(communication_view);
-            if (communication_view != null) communication_view.set_visible(true);
-            if (top_paned != null) top_paned.set_visible(false);
-
-        } else if (!explorer_shown && editor_shown && communication_shown) {
-            // Éditeur + Chat - configuration directe
-            stderr.printf("🔧 LAYOUT: Mode EDITEUR + CHAT\n");
-
-            // Détacher editor_notebook seulement si nécessaire
-            if (editor_notebook.get_parent() != main_paned) {
-                if (editor_notebook.get_parent() != null) {
-                    editor_notebook.unparent();
-                }
-                main_paned.set_start_child(editor_notebook);
-            }
-
-            // Détacher communication_view seulement si nécessaire
-            if (communication_view.get_parent() != main_paned) {
-                if (communication_view.get_parent() != null) {
-                    communication_view.unparent();
-                }
-                main_paned.set_end_child(communication_view);
-            }
-
-            if (editor_notebook != null) editor_notebook.set_visible(true);
-            if (communication_view != null) communication_view.set_visible(true);
-            if (top_paned != null) top_paned.set_visible(false);
-
-        } else if (explorer_shown && !editor_shown && communication_shown) {
-            // Explorateur + Chat
-            stderr.printf("🔧 LAYOUT: Mode EXPLORATEUR + CHAT\n");
-            main_paned.set_start_child(explorer_view);
-            main_paned.set_end_child(communication_view);
-            if (explorer_view != null) explorer_view.set_visible(true);
-            if (communication_view != null) communication_view.set_visible(true);
-            if (top_paned != null) top_paned.set_visible(false);
-
-        } else if (explorer_shown || editor_shown) {
-            // Layout normal avec top_paned
-            stderr.printf("🔧 LAYOUT: Mode NORMAL avec top_paned\n");
-            main_paned.set_start_child(top_paned);
-            if (communication_shown) {
-                main_paned.set_end_child(communication_view);
-            } else {
-                main_paned.set_end_child(null);
-            }
-
-            // Configuration du top_paned
-            if (explorer_shown && editor_shown) {
-                top_paned.set_start_child(explorer_view);
-                top_paned.set_end_child(editor_notebook);
-            } else if (explorer_shown) {
-                top_paned.set_start_child(explorer_view);
-                top_paned.set_end_child(null);
-            } else if (editor_shown) {
-                top_paned.set_start_child(null);
-                top_paned.set_end_child(editor_notebook);
-            }
-
-            // Visibilité
-            if (top_paned != null) top_paned.set_visible(true);
-            if (explorer_view != null) explorer_view.set_visible(explorer_shown);
-            if (editor_notebook != null) editor_notebook.set_visible(editor_shown);
-            if (communication_view != null) communication_view.set_visible(communication_shown);
-
-        } else {
-            // Fallback - au moins l'éditeur
-            stderr.printf("🔧 LAYOUT: Mode FALLBACK\n");
-            main_paned.set_start_child(editor_notebook);
-            main_paned.set_end_child(null);
-            if (editor_notebook != null) editor_notebook.set_visible(true);
-            editor_visible = true;
-            if (editor_button != null) editor_button.set_active(true);
-        }
-
-        // FORCER le recalcul GTK4
-        if (main_paned != null) {
-            main_paned.queue_resize();
-            main_paned.queue_allocate();
-        }
-        if (top_paned != null && top_paned.get_visible()) {
-            top_paned.queue_resize();
-            top_paned.queue_allocate();
-        }
-
-        // Forcer le rafraîchissement de l'éditeur
-        if (editor_notebook != null && editor_shown) {
-            editor_notebook.queue_resize();
-            editor_notebook.queue_allocate();
-            // Forcer le rafraîchissement de tous les onglets d'éditeur
-            for (int i = 0; i < editor_tabs.size; i++) {
-                var editor = editor_tabs[i];
-                if (editor != null) {
-                    editor.queue_resize();
-                    editor.queue_allocate();
-                }
-            }
-        }
-
-        this.queue_resize();
-
-        // Libérer le verrou
-        layout_updating = false;
-
-        // Forcer un rafraîchissement différé pour s'assurer que le layout est correct
-        Idle.add(() => {
-            if (editor_notebook != null && editor_shown) {
-                editor_notebook.queue_draw();
-                for (int i = 0; i < editor_tabs.size; i++) {
-                    var editor = editor_tabs[i];
-                    if (editor != null) {
-                        editor.queue_draw();
-                    }
-                }
-            }
-            return false; // Ne pas répéter
-        });
+        if (layout_manager == null) return;
+        
+        // Synchroniser les états avec le layout manager
+        layout_manager.explorer_visible = explorer_visible;
+        layout_manager.editor_visible = editor_visible; 
+        layout_manager.communication_visible = communication_visible;
+        
+        // Déléguer la logique complexe au gestionnaire de layout
+        layout_manager.update_adaptive_layout();
+        
+        // Programmer un rafraîchissement différé
+        layout_manager.schedule_delayed_refresh();
     }
 
     private GLib.MenuModel build_app_menu() {
@@ -534,10 +423,8 @@ public class MainWindow : Adw.ApplicationWindow {
         explorer_button.toggled.connect((button) => {
             explorer_visible = button.get_active();
             controller.toggle_explorer_visibility(button.get_active());
-            // Sauvegarder l'état de l'explorateur
-            var config = controller.get_config_manager();
-            config.set_boolean("Window", "explorer_visible", button.get_active());
-            config.save();
+            // Sauvegarder l'état de l'explorateur via le gestionnaire centralisé
+            window_state_manager.save_zone_visibility("explorer", button.get_active());
             // Mettre à jour le layout adaptatif
             update_adaptive_layout();
         });
@@ -818,18 +705,17 @@ public class MainWindow : Adw.ApplicationWindow {
     }
 
     private void restore_paned_positions() {
-        var config = controller.get_config_manager();
+        // Utiliser le gestionnaire d'état centralisé pour restaurer les positions
+        int top_paned_position, main_paned_position;
+        window_state_manager.restore_paned_positions(out top_paned_position, out main_paned_position);
 
         if (!use_detached_explorer) {
-            int top_position = config.get_integer("Window", "top_paned_position", 280);
-            int main_position = config.get_integer("Window", "main_paned_position", 500);
-
             if (top_paned != null && top_paned.get_visible()) {
                 // Attendre que le layout soit stable avant de restaurer
                 GLib.Timeout.add(50, () => {
                     if (top_paned.get_visible()) {
-                        top_paned.set_position(top_position);
-                        stderr.printf("🔧 RESTORE: top_paned position restaurée: %d\n", top_position);
+                        top_paned.set_position(top_paned_position);
+                        stderr.printf("🔧 RESTORE: top_paned position restaurée: %d\n", top_paned_position);
                     }
                     return false;
                 });
@@ -843,9 +729,9 @@ public class MainWindow : Adw.ApplicationWindow {
                     bool comm_ready = communication_visible && communication_view != null && communication_view.get_visible();
 
                     if (editor_ready && comm_ready) {
-                        main_paned.set_position(main_position);
+                        main_paned.set_position(main_paned_position);
                         stderr.printf("🔧 RESTORE: main_paned position restaurée: %d (editor:%s, comm:%s)\n",
-                            main_position, editor_ready ? "OK" : "NON", comm_ready ? "OK" : "NON");
+                            main_paned_position, editor_ready ? "OK" : "NON", comm_ready ? "OK" : "NON");
                     } else {
                         stderr.printf("🔧 RESTORE: Attente des widgets (editor:%s, comm:%s)\n",
                             editor_ready ? "OK" : "NON", comm_ready ? "OK" : "NON");
@@ -854,11 +740,10 @@ public class MainWindow : Adw.ApplicationWindow {
                 });
             }
         } else {
-            int main_position = config.get_integer("Window", "main_paned_position", 500);
             if (main_paned != null) {
                 GLib.Timeout.add(100, () => {
-                    main_paned.set_position(main_position);
-                    stderr.printf("🔧 RESTORE: main_paned position restaurée (mode détaché): %d\n", main_position);
+                    main_paned.set_position(main_paned_position);
+                    stderr.printf("🔧 RESTORE: main_paned position restaurée (mode détaché): %d\n", main_paned_position);
                     return false;
                 });
             }
@@ -872,37 +757,40 @@ public class MainWindow : Adw.ApplicationWindow {
             return;
         }
 
-        var config = controller.get_config_manager();
-
-        // Sauvegarder position du top_paned (entre explorateur et éditeur)
+        // Utiliser le gestionnaire d'état centralisé pour sauvegarder les positions
+        int? top_position = null;
+        int? main_position = null;
+        
         if (top_paned != null && top_paned.get_visible()) {
-            int top_position = top_paned.get_position();
-            if (top_position > 50 && top_position < 800) { // Position raisonnable
-                config.set_integer("Window", "top_paned_position", top_position);
-                stderr.printf("💾 SAVE: top_paned position sauvée: %d\n", top_position);
+            int pos = top_paned.get_position();
+            if (window_state_manager.is_position_valid(pos, 50, 800)) {
+                top_position = pos;
+                stderr.printf("💾 SAVE: top_paned position sauvée: %d\n", pos);
             }
         }
-
-        // Sauvegarder position du main_paned (entre éditeur et chat)
+        
         if (main_paned != null) {
-            int main_position = main_paned.get_position();
-            if (main_position > 100 && main_position < 1000) { // Position raisonnable
-                config.set_integer("Window", "main_paned_position", main_position);
-                stderr.printf("💾 SAVE: main_paned position sauvée: %d\n", main_position);
+            int pos = main_paned.get_position();
+            if (window_state_manager.is_position_valid(pos, 100, 1000)) {
+                main_position = pos;
+                stderr.printf("💾 SAVE: main_paned position sauvée: %d\n", pos);
             }
         }
-
-        config.save();
+        
+        window_state_manager.save_paned_positions(top_position, main_position);
     }
 
     private void save_window_state() {
         int width, height;
         this.get_default_size(out width, out height);
-        var config = controller.get_config_manager();
-        config.set_integer("Window", "width", width);
-        config.set_integer("Window", "height", height);
-
-        // Sauvegarder les positions des paneds
+        
+        // Utiliser le gestionnaire d'état centralisé
+        window_state_manager.save_window_state(
+            width, height, 
+            explorer_visible, editor_visible, communication_visible
+        );
+        
+        // Sauvegarder les positions des panneaux
         save_paned_positions();
     }
 
@@ -914,17 +802,16 @@ public class MainWindow : Adw.ApplicationWindow {
 
         stderr.printf("🎯 INIT: Application de la configuration sauvegardée\n");
 
-        var config = controller.get_config_manager();
-        int width = config.get_integer("Window", "width", 800);
-        int height = config.get_integer("Window", "height", 600);
-        width = int.max(width, 600);
-        height = int.max(height, 450);
+        // Utiliser le gestionnaire d'état centralisé pour restaurer la configuration
+        int width, height;
+        window_state_manager.restore_window_dimensions(out width, out height);
         this.set_default_size(width, height);
 
         // Restaurer les états des zones
-        bool show_explorer = config.get_boolean("Window", "explorer_visible", true);
-        bool show_editor = config.get_boolean("Window", "editor_visible", true);
-        bool show_communication = config.get_boolean("Window", "communication_visible", true);
+        bool show_explorer, show_editor, show_communication;
+        window_state_manager.restore_visibility_states(
+            out show_explorer, out show_editor, out show_communication
+        );
 
         // Mettre à jour les variables d'état
         explorer_visible = show_explorer;

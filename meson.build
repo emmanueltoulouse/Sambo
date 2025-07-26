@@ -188,6 +188,15 @@ sources = [
     'src/view/ExplorerView.vala',
     'src/view/EditorView.vala',
     'src/view/CommunicationView.vala',
+    
+    # Layout management
+    'src/view/layout/LayoutManager.vala',
+    
+    # Configuration management
+    'src/model/configuration/WindowStateManager.vala',
+    
+    # Performance optimization
+    'src/model/performance/PerformanceOptimizer.vala',
 
     # Fenêtres
     'src/view/windows/ExplorerWindow.vala',
