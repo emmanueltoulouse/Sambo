@@ -1,0 +1,39 @@
+name: Refactor Quality Check
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  lint-style:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      
+      - name: Installer les outils
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y valac vala-lint
+
+      - name: Vérification de style (espaces/tabs)
+        run: |
+          find src -name "*.vala" | while read file; do
+            echo "Analyse de $file"
+            if grep -q "    " "$file"; then
+              echo "❌ WARNING: Espaces détectés dans $file"
+            fi
+            if grep -q $'\t' "$file"; then
+              echo "❌ WARNING: Tabulations détectées dans $file"
+            fi
+          done
+
+      - name: Analyse avec vala-lint
+        run: |
+          find src -name "*.vala" | xargs -r vala-lint || echo "Vala-lint terminé"
+
