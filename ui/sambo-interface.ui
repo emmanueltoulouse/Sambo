@@ -1,0 +1,943 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <requires lib="libadwaita" version="1.0"/>
+
+  <!-- Fenêtre principale de l'application Sambo -->
+  <object class="AdwApplicationWindow" id="main_window">
+    <property name="title">Sambo</property>
+    <property name="default-width">1200</property>
+    <property name="default-height">600</property>
+    <property name="resizable">True</property>
+    <property name="icon-name">com.cabineteto.Sambo</property>
+    
+    <child>
+      <!-- Toast Overlay pour les notifications -->
+      <object class="AdwToastOverlay" id="toast_overlay">
+        <child>
+          <!-- Conteneur principal vertical -->
+          <object class="GtkBox" id="main_box">
+            <property name="orientation">vertical</property>
+            <property name="spacing">0</property>
+            
+            <child>
+              <!-- Barre d'en-tête -->
+              <object class="AdwHeaderBar" id="header_bar">
+                <child type="start">
+                  <!-- Bouton explorateur -->
+                  <object class="GtkToggleButton" id="explorer_button">
+                    <property name="icon-name">folder-symbolic</property>
+                    <property name="tooltip-text">Afficher/Masquer l'explorateur</property>
+                    <property name="active">True</property>
+                  </object>
+                </child>
+                
+                <child type="start">
+                  <!-- Bouton éditeur -->
+                  <object class="GtkToggleButton" id="editor_button">
+                    <property name="icon-name">text-editor-symbolic</property>
+                    <property name="tooltip-text">Afficher/Masquer la zone d'édition</property>
+                    <property name="active">True</property>
+                  </object>
+                </child>
+                
+                <child type="start">
+                  <!-- Bouton communication -->
+                  <object class="GtkToggleButton" id="communication_button">
+                    <property name="icon-name">mail-message-new-symbolic</property>
+                    <property name="tooltip-text">Afficher/Masquer la zone de communication</property>
+                    <property name="active">True</property>
+                  </object>
+                </child>
+                
+                <child type="end">
+                  <!-- Menu principal -->
+                  <object class="GtkMenuButton" id="menu_button">
+                    <property name="icon-name">open-menu-symbolic</property>
+                    <property name="tooltip-text">Menu principal</property>
+                    <property name="menu-model">app_menu</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            
+            <child>
+              <!-- Panneau principal vertical -->
+              <object class="GtkPaned" id="main_paned">
+                <property name="orientation">vertical</property>
+                <property name="vexpand">True</property>
+                <property name="wide-handle">True</property>
+                
+                <child>
+                  <!-- Panneau supérieur horizontal -->
+                  <object class="GtkPaned" id="top_paned">
+                    <property name="orientation">horizontal</property>
+                    <property name="wide-handle">True</property>
+                    <property name="vexpand">True</property>
+                    <property name="position">280</property>
+                    <property name="resize-start-child">False</property>
+                    <property name="shrink-start-child">False</property>
+                    
+                    <child>
+                      <!-- Vue explorateur -->
+                      <object class="GtkBox" id="explorer_view">
+                        <property name="orientation">vertical</property>
+                        <property name="spacing">0</property>
+                        <property name="margin-start">12</property>
+                        <property name="margin-end">12</property>
+                        <property name="margin-top">12</property>
+                        <property name="margin-bottom">12</property>
+                        
+                        <style>
+                          <class name="view"/>
+                        </style>
+                        
+                        <child>
+                          <!-- Barre d'outils de l'explorateur -->
+                          <object class="GtkBox" id="explorer_toolbar">
+                            <property name="orientation">horizontal</property>
+                            <property name="spacing">6</property>
+                            
+                            <style>
+                              <class name="toolbar"/>
+                            </style>
+                            
+                            <child>
+                              <!-- Bouton dossier parent -->
+                              <object class="GtkButton" id="up_button">
+                                <property name="icon-name">go-up-symbolic</property>
+                                <property name="tooltip-text">Dossier parent</property>
+                                <style>
+                                  <class name="flat"/>
+                                </style>
+                              </object>
+                            </child>
+                            
+                            <child>
+                              <!-- Bouton accueil -->
+                              <object class="GtkButton" id="home_button">
+                                <property name="icon-name">user-home-symbolic</property>
+                                <property name="tooltip-text">Dossier personnel</property>
+                                <style>
+                                  <class name="flat"/>
+                                </style>
+                              </object>
+                            </child>
+                            
+                            <child>
+                              <!-- Bouton actualiser -->
+                              <object class="GtkButton" id="refresh_button">
+                                <property name="icon-name">view-refresh-symbolic</property>
+                                <property name="tooltip-text">Actualiser</property>
+                                <style>
+                                  <class name="flat"/>
+                                </style>
+                              </object>
+                            </child>
+                            
+                            <child>
+                              <!-- Bouton filtre par extension -->
+                              <object class="GtkButton" id="ext_filter_button">
+                                <property name="icon-name">edit-find-symbolic</property>
+                                <property name="tooltip-text">Filtrer par extension</property>
+                                <style>
+                                  <class name="flat"/>
+                                </style>
+                              </object>
+                            </child>
+                            
+                            <child>
+                              <!-- Bouton ouvrir fichier -->
+                              <object class="GtkButton" id="open_button">
+                                <property name="icon-name">document-open-symbolic</property>
+                                <property name="tooltip-text">Ouvrir un fichier</property>
+                                <style>
+                                  <class name="flat"/>
+                                </style>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                        
+                        <child>
+                          <!-- Section favoris -->
+                          <object class="GtkBox" id="favorites_view">
+                            <property name="orientation">vertical</property>
+                            <property name="spacing">6</property>
+                            <property name="height-request">150</property>
+                            
+                            <child>
+                              <object class="GtkLabel" id="favorites_label">
+                                <property name="label">Favoris</property>
+                                <property name="halign">start</property>
+                                <style>
+                                  <class name="title-4"/>
+                                </style>
+                              </object>
+                            </child>
+                            
+                            <child>
+                              <object class="GtkScrolledWindow" id="favorites_scroll">
+                                <property name="vexpand">True</property>
+                                <child>
+                                  <object class="GtkListBox" id="favorites_listbox">
+                                    <style>
+                                      <class name="navigation-sidebar"/>
+                                    </style>
+                                  </object>
+                                </child>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                        
+                        <child>
+                          <!-- Liste des fichiers -->
+                          <object class="GtkScrolledWindow" id="file_list_scroll">
+                            <property name="policy">automatic</property>
+                            <property name="vexpand">True</property>
+                            <property name="hexpand">True</property>
+                            
+                            <child>
+                              <object class="GtkListView" id="file_list_view">
+                                <style>
+                                  <class name="file-list"/>
+                                </style>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    
+                    <child>
+                      <!-- Zone d'édition avec onglets -->
+                      <object class="GtkNotebook" id="editor_notebook">
+                        <property name="show-tabs">True</property>
+                        <property name="scrollable">True</property>
+                        <property name="enable-popup">True</property>
+                        <property name="vexpand">True</property>
+                        
+                        <child>
+                          <!-- Onglet par défaut -->
+                          <object class="GtkBox" id="default_editor">
+                            <property name="orientation">vertical</property>
+                            <property name="spacing">0</property>
+                            
+                            <child>
+                              <!-- Barre d'outils de l'éditeur -->
+                              <object class="GtkBox" id="editor_toolbar">
+                                <property name="orientation">horizontal</property>
+                                <property name="spacing">6</property>
+                                <property name="margin-start">6</property>
+                                <property name="margin-end">6</property>
+                                <property name="margin-top">6</property>
+                                <property name="margin-bottom">6</property>
+                                
+                                <style>
+                                  <class name="toolbar"/>
+                                </style>
+                                
+                                <child>
+                                  <!-- Bouton nouveau -->
+                                  <object class="GtkButton" id="new_button">
+                                    <property name="icon-name">document-new-symbolic</property>
+                                    <property name="tooltip-text">Nouveau document</property>
+                                    <style>
+                                      <class name="flat"/>
+                                    </style>
+                                  </object>
+                                </child>
+                                
+                                <child>
+                                  <!-- Bouton ouvrir -->
+                                  <object class="GtkButton" id="open_file_button">
+                                    <property name="icon-name">document-open-symbolic</property>
+                                    <property name="tooltip-text">Ouvrir un fichier</property>
+                                    <style>
+                                      <class name="flat"/>
+                                    </style>
+                                  </object>
+                                </child>
+                                
+                                <child>
+                                  <!-- Bouton sauvegarder -->
+                                  <object class="GtkButton" id="save_button">
+                                    <property name="icon-name">document-save-symbolic</property>
+                                    <property name="tooltip-text">Sauvegarder</property>
+                                    <style>
+                                      <class name="flat"/>
+                                    </style>
+                                  </object>
+                                </child>
+                                
+                                <child>
+                                  <!-- Séparateur -->
+                                  <object class="GtkSeparator" id="separator1">
+                                    <property name="orientation">vertical</property>
+                                  </object>
+                                </child>
+                                
+                                <child>
+                                  <!-- Bouton style -->
+                                  <object class="GtkButton" id="style_button">
+                                    <property name="icon-name">preferences-desktop-font-symbolic</property>
+                                    <property name="tooltip-text">Options de style</property>
+                                    <style>
+                                      <class name="flat"/>
+                                    </style>
+                                  </object>
+                                </child>
+                                
+                                <child>
+                                  <!-- Bouton gras -->
+                                  <object class="GtkToggleButton" id="bold_button">
+                                    <property name="icon-name">format-text-bold-symbolic</property>
+                                    <property name="tooltip-text">Gras</property>
+                                    <style>
+                                      <class name="flat"/>
+                                    </style>
+                                  </object>
+                                </child>
+                                
+                                <child>
+                                  <!-- Bouton italique -->
+                                  <object class="GtkToggleButton" id="italic_button">
+                                    <property name="icon-name">format-text-italic-symbolic</property>
+                                    <property name="tooltip-text">Italique</property>
+                                    <style>
+                                      <class name="flat"/>
+                                    </style>
+                                  </object>
+                                </child>
+                              </object>
+                            </child>
+                            
+                            <child>
+                              <!-- Zone d'édition WYSIWYG -->
+                              <object class="GtkScrolledWindow" id="editor_scroll">
+                                <property name="vexpand">True</property>
+                                <property name="hexpand">True</property>
+                                <property name="policy">automatic</property>
+                                
+                                <child>
+                                  <object class="GtkTextView" id="wysiwyg_editor">
+                                    <property name="wrap-mode">word</property>
+                                    <property name="left-margin">12</property>
+                                    <property name="right-margin">12</property>
+                                    <property name="top-margin">12</property>
+                                    <property name="bottom-margin">12</property>
+                                    <property name="editable">True</property>
+                                    <property name="cursor-visible">True</property>
+                                    
+                                    <style>
+                                      <class name="view"/>
+                                    </style>
+                                  </object>
+                                </child>
+                              </object>
+                            </child>
+                            
+                            <child>
+                              <!-- Barre de statut -->
+                              <object class="GtkBox" id="status_bar">
+                                <property name="orientation">horizontal</property>
+                                <property name="spacing">12</property>
+                                <property name="margin-start">6</property>
+                                <property name="margin-end">6</property>
+                                <property name="margin-top">3</property>
+                                <property name="margin-bottom">3</property>
+                                
+                                <style>
+                                  <class name="statusbar"/>
+                                </style>
+                                
+                                <child>
+                                  <object class="GtkLabel" id="status_label">
+                                    <property name="label">Prêt</property>
+                                    <property name="halign">start</property>
+                                    <property name="hexpand">True</property>
+                                  </object>
+                                </child>
+                                
+                                <child>
+                                  <object class="GtkLabel" id="position_label">
+                                    <property name="label">Ligne 1, Colonne 1</property>
+                                    <property name="halign">end</property>
+                                  </object>
+                                </child>
+                                
+                                <child>
+                                  <object class="GtkLabel" id="provenance_label">
+                                    <property name="label">Nouveau document</property>
+                                    <property name="halign">end</property>
+                                  </object>
+                                </child>
+                              </object>
+                            </child>
+                          </object>
+                          
+                          <child type="tab">
+                            <object class="GtkBox" id="default_tab_box">
+                              <property name="orientation">horizontal</property>
+                              <property name="spacing">6</property>
+                              
+                              <child>
+                                <object class="GtkLabel" id="default_tab_label">
+                                  <property name="label">Nouveau document</property>
+                                </object>
+                              </child>
+                              
+                              <child>
+                                <object class="GtkButton" id="default_tab_close">
+                                  <property name="icon-name">window-close-symbolic</property>
+                                  <property name="tooltip-text">Fermer l'onglet</property>
+                                  <style>
+                                    <class name="flat"/>
+                                    <class name="small"/>
+                                  </style>
+                                </object>
+                              </child>
+                            </object>
+                          </child>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                
+                <child>
+                  <!-- Zone de communication -->
+                  <object class="GtkBox" id="communication_view">
+                    <property name="orientation">vertical</property>
+                    <property name="spacing">6</property>
+                    
+                    <child>
+                      <object class="GtkFrame" id="communication_frame">
+                        <property name="margin-start">6</property>
+                        <property name="margin-end">6</property>
+                        <property name="margin-top">6</property>
+                        <property name="margin-bottom">6</property>
+                        
+                        <child>
+                          <object class="GtkBox" id="communication_content">
+                            <property name="orientation">vertical</property>
+                            <property name="spacing">6</property>
+                            
+                            <child>
+                              <!-- Notebook pour les onglets de communication -->
+                              <object class="GtkNotebook" id="communication_notebook">
+                                <property name="vexpand">True</property>
+                                
+                                <child>
+                                  <!-- Onglet Chat IA -->
+                                  <object class="GtkBox" id="chat_view">
+                                    <property name="orientation">vertical</property>
+                                    <property name="spacing">6</property>
+                                    
+                                    <child>
+                                      <!-- Zone de messages -->
+                                      <object class="GtkScrolledWindow" id="chat_scroll">
+                                        <property name="vexpand">True</property>
+                                        <property name="policy">automatic</property>
+                                        <property name="min-content-height">200</property>
+                                        
+                                        <child>
+                                          <object class="GtkListBox" id="chat_listbox">
+                                            <property name="selection-mode">none</property>
+                                            <style>
+                                              <class name="chat-messages"/>
+                                            </style>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
+                                    
+                                    <child>
+                                      <!-- Zone de saisie -->
+                                      <object class="GtkBox" id="chat_input_box">
+                                        <property name="orientation">horizontal</property>
+                                        <property name="spacing">6</property>
+                                        <property name="margin-start">6</property>
+                                        <property name="margin-end">6</property>
+                                        <property name="margin-bottom">6</property>
+                                        
+                                        <child>
+                                          <object class="GtkScrolledWindow" id="input_scroll">
+                                            <property name="hexpand">True</property>
+                                            <property name="max-content-height">100</property>
+                                            <property name="policy">automatic</property>
+                                            
+                                            <child>
+                                              <object class="GtkTextView" id="chat_input">
+                                                <property name="wrap-mode">word</property>
+                                                <property name="placeholder-text">Tapez votre message...</property>
+                                                <property name="accepts-tab">False</property>
+                                              </object>
+                                            </child>
+                                          </object>
+                                        </child>
+                                        
+                                        <child>
+                                          <object class="GtkButton" id="send_button">
+                                            <property name="icon-name">mail-send-symbolic</property>
+                                            <property name="tooltip-text">Envoyer</property>
+                                            <style>
+                                              <class name="suggested-action"/>
+                                            </style>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
+                                  </object>
+                                  
+                                  <child type="tab">
+                                    <object class="GtkLabel" id="chat_tab_label">
+                                      <property name="label">Chat IA</property>
+                                    </object>
+                                  </child>
+                                </child>
+                                
+                                <child>
+                                  <!-- Onglet Terminal -->
+                                  <object class="GtkBox" id="terminal_view">
+                                    <property name="orientation">vertical</property>
+                                    <property name="spacing">0</property>
+                                    
+                                    <child>
+                                      <object class="GtkScrolledWindow" id="terminal_scroll">
+                                        <property name="vexpand">True</property>
+                                        <property name="policy">automatic</property>
+                                        
+                                        <child>
+                                          <object class="GtkTextView" id="terminal_textview">
+                                            <property name="editable">False</property>
+                                            <property name="cursor-visible">False</property>
+                                            <property name="monospace">True</property>
+                                            <style>
+                                              <class name="terminal"/>
+                                            </style>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
+                                  </object>
+                                  
+                                  <child type="tab">
+                                    <object class="GtkLabel" id="terminal_tab_label">
+                                      <property name="label">Terminal</property>
+                                    </object>
+                                  </child>
+                                </child>
+                                
+                                <child>
+                                  <!-- Onglet Macros -->
+                                  <object class="GtkBox" id="macro_view">
+                                    <property name="orientation">vertical</property>
+                                    <property name="spacing">6</property>
+                                    
+                                    <child>
+                                      <object class="GtkScrolledWindow" id="macro_scroll">
+                                        <property name="vexpand">True</property>
+                                        <property name="policy">automatic</property>
+                                        
+                                        <child>
+                                          <object class="GtkListBox" id="macro_listbox">
+                                            <property name="selection-mode">single</property>
+                                            <style>
+                                              <class name="macro-list"/>
+                                            </style>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
+                                  </object>
+                                  
+                                  <child type="tab">
+                                    <object class="GtkLabel" id="macro_tab_label">
+                                      <property name="label">Macros</property>
+                                    </object>
+                                  </child>
+                                </child>
+                              </object>
+                            </child>
+                            
+                            <child>
+                              <!-- Barre d'action -->
+                              <object class="GtkBox" id="action_bar">
+                                <property name="orientation">horizontal</property>
+                                <property name="spacing">6</property>
+                                <property name="margin-start">6</property>
+                                <property name="margin-end">6</property>
+                                <property name="margin-bottom">6</property>
+                                
+                                <child>
+                                  <object class="GtkLabel" id="status_communication_label">
+                                    <property name="label">Prêt</property>
+                                    <property name="halign">start</property>
+                                    <property name="hexpand">True</property>
+                                  </object>
+                                </child>
+                                
+                                <child>
+                                  <object class="GtkLabel" id="execution_time_label">
+                                    <property name="label">00:00</property>
+                                    <property name="halign">end</property>
+                                  </object>
+                                </child>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+
+  <!-- Menu principal de l'application -->
+  <menu id="app_menu">
+    <section>
+      <item>
+        <attribute name="label">Nouveau fichier</attribute>
+        <attribute name="action">app.new-file</attribute>
+        <attribute name="accel">&lt;Primary&gt;n</attribute>
+      </item>
+      <item>
+        <attribute name="label">Ouvrir fichier</attribute>
+        <attribute name="action">app.open-file</attribute>
+        <attribute name="accel">&lt;Primary&gt;o</attribute>
+      </item>
+      <item>
+        <attribute name="label">Sauvegarder</attribute>
+        <attribute name="action">app.save-file</attribute>
+        <attribute name="accel">&lt;Primary&gt;s</attribute>
+      </item>
+    </section>
+    
+    <section>
+      <item>
+        <attribute name="label">Gestionnaire de profils</attribute>
+        <attribute name="action">app.profile-manager</attribute>
+      </item>
+      <item>
+        <attribute name="label">Comparateur de fichiers</attribute>
+        <attribute name="action">app.file-comparer</attribute>
+      </item>
+    </section>
+    
+    <section>
+      <submenu>
+        <attribute name="label">Affichage</attribute>
+        <section>
+          <item>
+            <attribute name="label">Explorateur détaché</attribute>
+            <attribute name="action">app.toggle-detached-explorer</attribute>
+          </item>
+          <item>
+            <attribute name="label">Afficher fichiers cachés</attribute>
+            <attribute name="action">app.toggle-hidden-files</attribute>
+          </item>
+          <item>
+            <attribute name="label">Afficher fil d'Ariane</attribute>
+            <attribute name="action">app.toggle-breadcrumb</attribute>
+          </item>
+        </section>
+      </submenu>
+    </section>
+    
+    <section>
+      <item>
+        <attribute name="label">Préférences</attribute>
+        <attribute name="action">app.preferences</attribute>
+      </item>
+      <item>
+        <attribute name="label">Raccourcis clavier</attribute>
+        <attribute name="action">win.show-help-overlay</attribute>
+      </item>
+      <item>
+        <attribute name="label">À propos</attribute>
+        <attribute name="action">app.about</attribute>
+      </item>
+    </section>
+    
+    <section>
+      <item>
+        <attribute name="label">Quitter</attribute>
+        <attribute name="action">app.quit</attribute>
+        <attribute name="accel">&lt;Primary&gt;q</attribute>
+      </item>
+    </section>
+  </menu>
+
+  <!-- Dialogue À propos -->
+  <object class="AdwAboutWindow" id="about_dialog">
+    <property name="application-name">Sambo</property>
+    <property name="application-icon">com.cabineteto.Sambo</property>
+    <property name="version">1.0.0</property>
+    <property name="developer-name">Cabinet ETO</property>
+    <property name="website">https://cabineteto.com</property>
+    <property name="issue-url">https://github.com/emmanueltoulouse/Sambo/issues</property>
+    <property name="copyright">© 2023 Cabinet ETO</property>
+    <property name="license-type">gpl_3_0</property>
+    <property name="developers">Emmanuel Toulouse</property>
+    <property name="translator-credits">translator-credits</property>
+    <property name="comments">Application de gestion de documents avec IA intégrée</property>
+  </object>
+
+  <!-- Fenêtre de gestionnaire de profils -->
+  <object class="AdwWindow" id="profile_manager_window">
+    <property name="title">Gestionnaire de profils IA</property>
+    <property name="default-width">800</property>
+    <property name="default-height">600</property>
+    <property name="modal">True</property>
+    
+    <child>
+      <object class="GtkBox" id="profile_manager_box">
+        <property name="orientation">vertical</property>
+        <property name="spacing">0</property>
+        
+        <child>
+          <object class="AdwHeaderBar" id="profile_manager_header">
+            <child type="start">
+              <object class="GtkButton" id="profile_add_button">
+                <property name="icon-name">list-add-symbolic</property>
+                <property name="tooltip-text">Ajouter un profil</property>
+              </object>
+            </child>
+            
+            <child type="end">
+              <object class="GtkButton" id="profile_close_button">
+                <property name="label">Fermer</property>
+              </object>
+            </child>
+          </object>
+        </child>
+        
+        <child>
+          <object class="GtkPaned" id="profile_paned">
+            <property name="orientation">horizontal</property>
+            <property name="vexpand">True</property>
+            <property name="position">300</property>
+            
+            <child>
+              <!-- Liste des profils -->
+              <object class="GtkScrolledWindow" id="profile_list_scroll">
+                <property name="policy">automatic</property>
+                
+                <child>
+                  <object class="GtkListBox" id="profile_listbox">
+                    <property name="selection-mode">single</property>
+                    <style>
+                      <class name="navigation-sidebar"/>
+                    </style>
+                  </object>
+                </child>
+              </object>
+            </child>
+            
+            <child>
+              <!-- Détails du profil -->
+              <object class="GtkScrolledWindow" id="profile_details_scroll">
+                <property name="policy">automatic</property>
+                
+                <child>
+                  <object class="GtkBox" id="profile_details_box">
+                    <property name="orientation">vertical</property>
+                    <property name="spacing">12</property>
+                    <property name="margin-start">12</property>
+                    <property name="margin-end">12</property>
+                    <property name="margin-top">12</property>
+                    <property name="margin-bottom">12</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+
+  <!-- Fenêtre de comparaison de fichiers -->
+  <object class="AdwWindow" id="file_comparer_window">
+    <property name="title">Comparateur de fichiers</property>
+    <property name="default-width">1000</property>
+    <property name="default-height">700</property>
+    <property name="modal">True</property>
+    
+    <child>
+      <object class="GtkBox" id="comparer_box">
+        <property name="orientation">vertical</property>
+        <property name="spacing">0</property>
+        
+        <child>
+          <object class="AdwHeaderBar" id="comparer_header">
+            <child type="start">
+              <object class="GtkButton" id="select_left_file">
+                <property name="label">Fichier 1</property>
+                <property name="tooltip-text">Sélectionner le premier fichier</property>
+              </object>
+            </child>
+            
+            <child type="start">
+              <object class="GtkButton" id="select_right_file">
+                <property name="label">Fichier 2</property>
+                <property name="tooltip-text">Sélectionner le second fichier</property>
+              </object>
+            </child>
+            
+            <child type="end">
+              <object class="GtkButton" id="comparer_close_button">
+                <property name="label">Fermer</property>
+              </object>
+            </child>
+          </object>
+        </child>
+        
+        <child>
+          <object class="GtkPaned" id="comparer_paned">
+            <property name="orientation">horizontal</property>
+            <property name="vexpand">True</property>
+            <property name="position">500</property>
+            
+            <child>
+              <!-- Fichier gauche -->
+              <object class="GtkScrolledWindow" id="left_file_scroll">
+                <property name="policy">automatic</property>
+                
+                <child>
+                  <object class="GtkTextView" id="left_file_view">
+                    <property name="editable">False</property>
+                    <property name="monospace">True</property>
+                    <property name="wrap-mode">none</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            
+            <child>
+              <!-- Fichier droit -->
+              <object class="GtkScrolledWindow" id="right_file_scroll">
+                <property name="policy">automatic</property>
+                
+                <child>
+                  <object class="GtkTextView" id="right_file_view">
+                    <property name="editable">False</property>
+                    <property name="monospace">True</property>
+                    <property name="wrap-mode">none</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+
+  <!-- Popover pour le style de l'éditeur -->
+  <object class="GtkPopover" id="style_popover">
+    <property name="width-request">300</property>
+    <property name="height-request">400</property>
+    
+    <child>
+      <object class="GtkBox" id="style_popover_box">
+        <property name="orientation">vertical</property>
+        <property name="spacing">12</property>
+        <property name="margin-start">12</property>
+        <property name="margin-end">12</property>
+        <property name="margin-top">12</property>
+        <property name="margin-bottom">12</property>
+        
+        <child>
+          <object class="GtkLabel" id="style_title">
+            <property name="label">Options de style</property>
+            <style>
+              <class name="title-4"/>
+            </style>
+          </object>
+        </child>
+        
+        <child>
+          <!-- Police -->
+          <object class="GtkBox" id="font_box">
+            <property name="orientation">vertical</property>
+            <property name="spacing">6</property>
+            
+            <child>
+              <object class="GtkLabel" id="font_label">
+                <property name="label">Police</property>
+                <property name="halign">start</property>
+              </object>
+            </child>
+            
+            <child>
+              <object class="GtkDropDown" id="font_dropdown">
+                <property name="hexpand">True</property>
+              </object>
+            </child>
+          </object>
+        </child>
+        
+        <child>
+          <!-- Taille -->
+          <object class="GtkBox" id="size_box">
+            <property name="orientation">vertical</property>
+            <property name="spacing">6</property>
+            
+            <child>
+              <object class="GtkLabel" id="size_label">
+                <property name="label">Taille</property>
+                <property name="halign">start</property>
+              </object>
+            </child>
+            
+            <child>
+              <object class="GtkSpinButton" id="size_spin">
+                <property name="adjustment">size_adjustment</property>
+                <property name="value">14</property>
+              </object>
+            </child>
+          </object>
+        </child>
+        
+        <child>
+          <!-- Couleur -->
+          <object class="GtkBox" id="color_box">
+            <property name="orientation">vertical</property>
+            <property name="spacing">6</property>
+            
+            <child>
+              <object class="GtkLabel" id="color_label">
+                <property name="label">Couleur</property>
+                <property name="halign">start</property>
+              </object>
+            </child>
+            
+            <child>
+              <object class="GtkColorButton" id="color_button">
+                <property name="hexpand">True</property>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+
+  <!-- Adjustments -->
+  <object class="GtkAdjustment" id="size_adjustment">
+    <property name="lower">8</property>
+    <property name="upper">72</property>
+    <property name="value">14</property>
+    <property name="step-increment">1</property>
+    <property name="page-increment">2</property>
+  </object>
+</interface>
