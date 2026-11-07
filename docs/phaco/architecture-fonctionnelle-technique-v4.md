@@ -20,6 +20,7 @@ Principes fondamentaux :
 5. Architecture multi-navire : composants génériques, équipements décrits par profils et configuration PHACO spécifique.
 6. Traçabilité des commandes, de leurs auteurs, des données et des résultats ; informations incertaines et périmées explicitement signalées.
 7. Principe de moindre privilège, défense en profondeur et tests avant toute interaction physique sensible.
+8. **Aucune interface texte/CLI comme interface normale à bord** : toute fonction ou commande réalisable en texte doit disposer d'une commande graphique équivalente dans l'application GNOME, et être prévue dans le client Android. La CLI reste réservée au laboratoire, à la maintenance et au mode dégradé de crise. Cette équivalence fonctionnelle ne signifie jamais une double exécution de l'ordre.
 
 ## 2. Architecture logique
 
@@ -68,7 +69,9 @@ LAN laboratoire connu : A9 `192.168.50.1`, X1 `192.168.50.11`, X2 `192.168.50.12
 - **Timonerie** : priorité instruments, cartographie, alarmes, état du pilote et moteur.
 - **Postes 1 et 2** : navigation consultable, confort, énergie, journal, communication, supervision.
 - **Client natif** : Vala, GTK4/libadwaita sous GNOME, y compris administration et diagnostic.
-- **Client tablette** : Web local responsive/PWA pour Android et autres navigateurs. Un développement Android natif reste optionnel.
+- **Client tablette** : interface Android à livrer rapidement, fondée initialement sur un client Web local responsive/PWA si celui-ci satisfait les contraintes de sûreté, de disponibilité et d'ergonomie ; application Android native si nécessaire. L'accès graphique aux commandes devra être équivalent à celui du client GNOME.
+- **CLI / texte** : outil strictement réservé aux développeurs, à la maintenance et aux procédures de crise en mode dégradé. Aucun usage normal à bord ne doit imposer un terminal ou une commande texte. Toute nouvelle commande CLI métier doit être exposée aussi dans l'application GNOME et prévue dans l'application Android ; les différences de droits ou de capacités doivent être spécifiées et justifiées.
+- **Implémentation** : une action métier unique est exposée via l'API commune à plusieurs interfaces. La même commande est **disponible** dans chaque interface, mais n'est **exécutée qu'une seule fois** par demande, avec idempotence, autorisation et audit. Les trois tablettes embarquées doivent rester utilisables sans clavier physique.
 - **Matériel** : recherche de tablettes durcies IP68, lisibles dehors, faible consommation, alimentation/montage sûrs, entretien possible, occasion envisageable. Galaxy Tab Active3 8 pouces étudiée mais vieillissante ; écran plus grand à envisager en timonerie.
 
 Les deux interfaces de commande et la voix utilisent **exactement la même API, les mêmes droits et contrôles**. Elles doivent détecter les liens interrompus et éviter tout rejeu de commande. Un mode de lecture hors ligne signalera la fraîcheur des données.
@@ -173,6 +176,7 @@ Cycle : spécifier → simuler → coder → tests unitaires → intégration �
 4. Quels profils et contrats d'adaptateurs garantissent la réutilisation sur d'autres navires ?
 5. Quelle stratégie de simulation et de tests de non-régression est suffisante ?
 6. Comment sécuriser NMEA, les tablettes, Home Assistant, MQTT et les agents ?
+6 bis. Comment garantir et tester la parité fonctionnelle CLI/GNOME/Android, sans double exécution et sans imposer d'interface texte à bord ?
 7. Quels mécanismes indépendants de détresse, MOB et sécurité du navigateur solitaire recommander ?
 8. Comment qualifier les fausses alertes et confirmer la réception effective d'une demande de secours ?
 9. Quels interverrouillages pour groupe, dessalinisateur et autres équipements techniques ?
