@@ -18,6 +18,7 @@
 - Revue cybersécurité et sécurité maritime intégrée, particulièrement pour tout système pouvant agir sur un équipement.
 - Documents et exigences suivis par GitHub ; tâches via Issues ; propositions et commentaires via Pull Requests.
 - Une étape métier à la fois ; validation du chef de projet avant la suivante. Les sous-opérations techniques peuvent être automatisées ensemble.
+- **Règle obligatoire IHM** : toute commande métier disponible en mode texte/CLI doit avoir une commande graphique équivalente dans l'application GNOME ; elle devra également être accessible dans le futur client Android. Le texte/CLI n'est pas une interface d'exploitation normale à bord (sauf maintenance ou crise en mode dégradé). Il s'agit d'une parité des fonctionnalités, pas d'une double exécution d'ordre.
 
 ## 2. Gouvernance documentaire
 
@@ -41,7 +42,7 @@ Une proposition d'expert peut être conservée dans une Issue même si elle n'es
 | S02 | Cybersécurité et AAA | Identités, droits, risques, segmentation et durcissement | P0 | À faire |
 | S03 | Orchestration Vala | Routage, événements, erreurs, services, tests | P0 | Prototype partiel à auditer |
 | S04 | Chaîne vocale | Wake word, STT, Voice ID, TTS, commandes communes | P1 | Prototypes partiels |
-| S05 | Interfaces GNOME/Web | UI tactile, tableaux de bord, commandes, droits | P1 | À faire |
+| S05 | Interfaces GNOME/Android/Web | UI tactile, commandes graphiques équivalentes aux commandes CLI, droits, usage sans terminal à bord | P0 socle / P1 finition | À faire |
 | S06 | Simulateur de navire | Capteurs et équipements simulés, pannes, scénarios | P0 | À faire |
 | S07 | Navigation | Signal K, NMEA, carte, instruments et alarmes | P1 | À faire |
 | S08 | Confort multizone | Éclairage, audio, chauffage/climatisation des 3 postes | P1 | À faire |
@@ -76,11 +77,13 @@ Une proposition d'expert peut être conservée dans une Issue même si elle n'es
 **Acceptation :** tests unitaires et intégration reproductibles ; aucun contournement connu des contrôles dans le périmètre testé.
 
 ### J2 — Interfaces et chaîne vocale
-- Unifier les commandes voix et GNOME/Web sur la même API.
+- Unifier les commandes voix, GNOME et Android/Web sur la même API.
+- Inventorier les commandes CLI métier existantes et vérifier pour chacune une commande GNOME équivalente ; documenter l'équivalent Android planifié.
+- Faire de la CLI un outil de laboratoire, de maintenance ou de mode dégradé, non une dépendance d'exploitation embarquée.
 - Tableaux de bord timonerie/postes 1 et 2 ; affichage des données simulées.
 - TTS, retours d'états distincts (demandé/autorisé/transmis/observé).
 
-**Acceptation :** même commande, même politique d'autorisation, quelle que soit l'interface ; tests de déconnexion.
+**Acceptation :** même commande métier, même politique d'autorisation, quelle que soit l'interface ; parité CLI/GNOME démontrée ; parcours Android disponible ou écart explicitement suivi ; aucune tâche normale à bord nécessitant un terminal ; tests de déconnexion et d'absence de double exécution.
 
 ### J3 — Supervision nautique et technique en lecture seule
 - Intégration Signal K et capteurs disponibles.
@@ -111,6 +114,7 @@ Chaque tâche devra comporter :
 - Priorité et responsable.
 - Critères d'acceptation (tests fonctionnels et sécurité).
 - Risques/impact multi-navire.
+- Pour toute commande métier ajoutée en CLI : emplacement de l'action GNOME équivalente, parcours Android prévu et test de non-double-exécution.
 - Documents ou PR associés.
 - État : **À étudier → À faire → En cours → En revue → À tester → Validé** ; **Bloqué** si nécessaire.
 
