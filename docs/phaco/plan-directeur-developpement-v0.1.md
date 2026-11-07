@@ -2,7 +2,7 @@
 ## Plan directeur de développement et de suivi
 
 **Version 0.1 — 7 novembre 2026**  
-**Document associé :** [Architecture fonctionnelle et technique v4](../architecture-fonctionnelle-technique-v4.md)  
+**Document associé :** [Architecture fonctionnelle et technique v4](architecture-fonctionnelle-technique-v4.md)  
 **Chef de projet :** Emmanuel Toulouse  
 **Équipe technique :** Embryon SAMBO (assistant ChatGPT, interventions à la demande du chef de projet)
 
